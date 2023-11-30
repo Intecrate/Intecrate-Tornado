@@ -1,0 +1,11 @@
+# Caches
+__pycache__
+
+# Server Logs
+*.log
+
+# Temporary Files
+*.mp4
+
+# Misc
+*.DS_Store
