@@ -16,15 +16,18 @@ import cloud_manager
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 
+class TestFailure(BaseException): ...
 class TestHandler:
+
+    cloud_manager = cloud_manager
 
     def __init__(self) -> None:
         # Change to api-server directory
         path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..")
         os.chdir(path)
 
-    @classmethod
-    def start_server(cls) -> None:
+    @staticmethod
+    def start_server() -> None:
         """Starts the server daemon thread"""
 
         def worker():
@@ -36,13 +39,13 @@ class TestHandler:
         time.sleep(5)
         print("Assuming server has started")
 
-    @classmethod
-    def stop_server(cls) -> None:
+    @staticmethod
+    def stop_server() -> None:
         """Kills the server thread by exiting the program"""
         exit()
 
-    @classmethod
-    def make_url(cls, endpoint: str) -> str:
+    @staticmethod
+    def make_url(endpoint: str) -> str:
         """Converts a endpoint into a localhost url to the test server
         
         Args:
@@ -54,8 +57,8 @@ class TestHandler:
         """
         return f"http://localhost:3001{endpoint}"
 
-    @classmethod
-    def message(cls, message: str) -> None:
+    @staticmethod
+    def message(message: str) -> None:
         """Prints a generic testing message
         
         Args:
@@ -63,8 +66,8 @@ class TestHandler:
         """
         print(f"\033[92m{message}\x1b[0m")
 
-    @classmethod
-    def warn(cls, message: str) -> None:
+    @staticmethod
+    def warn(message: str) -> None:
         """Prints a warning (yellow) message
         
         Args:
@@ -72,8 +75,8 @@ class TestHandler:
         """
         print(f"\033[93m {message}\033[00m")
 
-    @classmethod
-    def report(cls, message: str, test_name: str) -> None:
+    @staticmethod
+    def report(message: str, test_name: str) -> None:
         """Reports an error to the test handler. Shuts down server and
             exits test
 
@@ -86,8 +89,8 @@ class TestHandler:
         sys.stderr.write(message)
         exit(1)
 
-    @classmethod
-    def testpass(cls, test_name: str, no_shutdown: bool) -> None:
+    @staticmethod
+    def testpass(test_name: str, no_shutdown: bool = False) -> None:
         """Signals that a test has passed. Shuts down server and
             exits test.
         
@@ -100,3 +103,26 @@ class TestHandler:
 
         if not no_shutdown:
             exit(0)
+
+    @staticmethod
+    def check_environ() -> None:
+        """Checks the environment variables for the necessary tokens
+        
+        Raises:
+            TestFailure if not all keys are present
+        """
+
+        required_vars = [
+            "INTECRATE_TEST_USER_KEY"
+        ]
+
+        for key in os.environ.keys():
+            if key in required_vars:
+                required_vars.remove(key)
+        
+        if len(required_vars) > 0:
+            raise TestFailure(f"Missing keys: {required_vars}")
+
+        
+# Scan environment on import
+TestHandler.check_environ()

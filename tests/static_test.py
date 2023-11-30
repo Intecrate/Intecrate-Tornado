@@ -1,28 +1,36 @@
+"""
+Tests datamodel, database, and file management without starting the server
+
+Kyle Tennison
+November 2023
+"""
+
+
 from traceback import print_tb
-import test_handler
+from test_handler import TestHandler
 
-test_handler.message(f"Testing datamodel...")
+TestHandler.message(f"Testing datamodel...")
 
 try:
-    test_handler.cloud_manager.datamodel.test()
+    TestHandler.cloud_manager.datamodel.test()
 except Exception as e:
     print_tb(e.__traceback__)
-    test_handler.report(str(e), "datamodel")
+    TestHandler.report(str(e), "datamodel")
 
-test_handler.testpass("datamodel")
+TestHandler.testpass("datamodel")
 
 
-test_handler.message(f"Testing database...")
+TestHandler.message(f"Testing database...")
 try:
-    test_handler.cloud_manager.mongo_util.test()
+    TestHandler.cloud_manager.mongo_util.test()
 except Exception as e:
     print_tb(e.__traceback__)
-    test_handler.report(str(e), "database")
+    TestHandler.report(str(e), "database")
 
 
-test_handler.message(f"Testing file manager...")
+TestHandler.message(f"Testing file manager...")
 try:
-    test_handler.cloud_manager.file_management.test()
+    TestHandler.cloud_manager.file_management.test()
 except Exception as e:
     print_tb(e.__traceback__)
-    test_handler.report(str(e), "database")
+    TestHandler.report(str(e), "database")
