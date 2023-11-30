@@ -6,13 +6,13 @@ Licensing Information found at: https://intecrate.co/legal/license
 """
 
 from __future__ import annotations
-from intecrate_api.common.tools import log, verify_password, hash_str
-from intecrate_api.common.base import BaseHandler, apipost
-from intecrate_api.datamodel import ResponseContainer
-import intecrate_api.datamodel as datamodel
-import intecrate_api.common.settings as s
-from intecrate_api.common.mongo_util import DatabaseError
-from intecrate_api.handlers.admin import *
+from cloud_manager.common.tools import log, verify_password, hash_str
+from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.datamodel import ResponseContainer
+import cloud_manager.datamodel as datamodel
+import cloud_manager.common.settings as s
+from cloud_manager.common.mongo_util import DatabaseError
+from cloud_manager.handlers.admin import *
 
 from dateutil.parser import parse as date_parse
 import uuid

@@ -8,12 +8,12 @@ Licensing Information found at: https://intecrate.co/legal/license
 
 from __future__ import annotations
 import sys
-import intecrate_api.common.settings as s
-import intecrate_api.common.tools as tools
-from intecrate_api.common.tools import log
-from intecrate_api.common.base import BaseHandler, host
-import intecrate_api.api as api
-import intecrate_api.common.mongo_util
+import cloud_manager.common.settings as s
+import cloud_manager.common.tools as tools
+from cloud_manager.common.tools import log
+from cloud_manager.common.base import BaseHandler, host
+import cloud_manager.api as api
+import cloud_manager.common.mongo_util
 
 import tornado
 

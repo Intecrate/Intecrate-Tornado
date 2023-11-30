@@ -4,8 +4,8 @@ Depricated
 
 
 from __future__ import annotations
-from intecrate_api.webserver import BaseHandler
-from intecrate_api.common.tools import log, get_homedir
+from cloud_manager.webserver import BaseHandler
+from cloud_manager.common.tools import log, get_homedir
 
 import os
 

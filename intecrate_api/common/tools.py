@@ -8,8 +8,8 @@ Licensing Information found at: https://intecrate.co/legal/license
 from __future__ import annotations
 
 from typing import Optional
-import intecrate_api.datamodel as datamodel
-import intecrate_api.common.settings as s
+import cloud_manager.datamodel as datamodel
+import cloud_manager.common.settings as s
 import os
 import bcrypt
 

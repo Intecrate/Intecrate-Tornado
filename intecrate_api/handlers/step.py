@@ -1,12 +1,12 @@
 from uuid import uuid4
 
-from intecrate_api.common.tools import log
-import intecrate_api.common.tools as tools
-from intecrate_api import datamodel
-from intecrate_api.common.base import BaseHandler, apipost
-from intecrate_api.file_management import FileManager
-from intecrate_api.datamodel import ResponseContainer
-from intecrate_api.common.mongo_util import DatabaseError
+from cloud_manager.common.tools import log
+import cloud_manager.common.tools as tools
+from cloud_manager import datamodel
+from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.file_management import FileManager
+from cloud_manager.datamodel import ResponseContainer
+from cloud_manager.common.mongo_util import DatabaseError
 
 
 class StepList(BaseHandler):

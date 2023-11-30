@@ -9,10 +9,10 @@ from __future__ import annotations
 from pprint import pprint
 import tornado.web
 import tornado.httpserver
-from intecrate_api.common.tools import log
-import intecrate_api.datamodel as datamodel
-import intecrate_api.common.settings as s
-import intecrate_api.common.mongo_util as mongo_util
+from cloud_manager.common.tools import log
+import cloud_manager.datamodel as datamodel
+import cloud_manager.common.settings as s
+import cloud_manager.common.mongo_util as mongo_util
 from tornado.httputil import parse_multipart_form_data
 
 import os

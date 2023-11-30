@@ -13,7 +13,7 @@ sys.path.append(parent_dir)
 
 import threading
 import time
-import intecrate_api
+import cloud_manager
 
 
 def main():
@@ -28,7 +28,7 @@ def start_server():
     """Starts the server in a daemon-style"""
 
     def worker():
-        intecrate_api.webserver.main()
+        cloud_manager.webserver.main()
 
     threading.Thread(target=worker, daemon=True).start()
 

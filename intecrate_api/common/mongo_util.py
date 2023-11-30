@@ -9,9 +9,9 @@ from __future__ import annotations
 import datetime
 from pprint import pprint
 import uuid
-from intecrate_api.common.tools import log, hash_str
-import intecrate_api.datamodel as datamodel
-from intecrate_api.common.settings import ATLAS_PASSWORD
+from cloud_manager.common.tools import log, hash_str
+import cloud_manager.datamodel as datamodel
+from cloud_manager.common.settings import ATLAS_PASSWORD
 
 import motor
 import pymongo.errors

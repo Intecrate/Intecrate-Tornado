@@ -5,10 +5,10 @@ from pprint import pprint
 import shutil
 from uuid import uuid4
 
-from intecrate_api import datamodel
-from intecrate_api.common.mongo_util import Database
-from intecrate_api.common.settings import DATA_ROOT
-from intecrate_api.common.tools import log, extension_to_resourcetype, maybe_makedirs
+from cloud_manager import datamodel
+from cloud_manager.common.mongo_util import Database
+from cloud_manager.common.settings import DATA_ROOT
+from cloud_manager.common.tools import log, extension_to_resourcetype, maybe_makedirs
 
 
 class FileManagementError(Exception):

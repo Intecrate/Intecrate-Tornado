@@ -1,3 +1,3 @@
-from intecrate_api.webserver import main
+from cloud_manager.webserver import main
 
 main()

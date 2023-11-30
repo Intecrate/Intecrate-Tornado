@@ -1,7 +1,7 @@
-from intecrate_api.common.tools import log
-from intecrate_api import datamodel
-from intecrate_api.common.base import BaseHandler, apipost
-from intecrate_api.file_management import FileManager
+from cloud_manager.common.tools import log
+from cloud_manager import datamodel
+from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.file_management import FileManager
 
 
 class AdminChallenge(BaseHandler):
