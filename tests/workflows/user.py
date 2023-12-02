@@ -1,0 +1,3 @@
+from tests.test_handler import TestHandler
+
+def test(): ...

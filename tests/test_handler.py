@@ -5,18 +5,19 @@ Kyle Tennison
 August 2023
 """
 
-
 import sys
 import os
 import threading
 import time
-import cloud_manager
 
 # Add cloud_manager to sys path
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+parent_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
+import cloud_manager
 
-class TestFailure(BaseException): ...
+class TestFailure(BaseException): 
+    def __init__(self, message: str, test_name: str):
+        TestHandler.report(message, test_name)
 class TestHandler:
 
     cloud_manager = cloud_manager
@@ -85,8 +86,7 @@ class TestHandler:
             test_name: The name of the test that is being reported
         
         """
-        print(f"\033[91m Test {test_name} failed: {message}\033[0m")
-        sys.stderr.write(message)
+        print(f"\033[91mTest {test_name} failed: {message}\033[0m")
         exit(1)
 
     @staticmethod
@@ -104,8 +104,8 @@ class TestHandler:
         if not no_shutdown:
             exit(0)
 
-    @staticmethod
-    def check_environ() -> None:
+    @classmethod
+    def check_environ(cls) -> None:
         """Checks the environment variables for the necessary tokens
         
         Raises:
@@ -113,15 +113,17 @@ class TestHandler:
         """
 
         required_vars = [
-            "INTECRATE_TEST_USER_KEY"
+            "INTECRATE_TEST_USER_KEY",
+            "INTECRATE_ADMIN_API_KEY",
         ]
 
-        for key in os.environ.keys():
+        for key, value in os.environ.items():
             if key in required_vars:
+                cls.__dict__[key] = value
                 required_vars.remove(key)
         
         if len(required_vars) > 0:
-            raise TestFailure(f"Missing keys: {required_vars}")
+            raise TestFailure(f"Missing environment variables: {required_vars}", "Environment variable check")
 
         
 # Scan environment on import
