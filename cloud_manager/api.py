@@ -378,7 +378,7 @@ class util_whoami(BaseHandler):
         user = await self.db.user_by_key(api_key)
 
         if user is None:
-            response.message = "Illegal API Key"
+            response.message = f"Illegal API Key {api_key}"
             await self.respond(response)
             return
 

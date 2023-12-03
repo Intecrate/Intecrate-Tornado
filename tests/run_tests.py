@@ -1,5 +1,6 @@
+from traceback import print_tb
 from typing import Callable
-from tests.workflows.user import test as user_test
+from tests.workflows.user import user_test
 from tests.test_handler import TestFailure, TestHandler
 
 TestHandler.start_server()
@@ -19,6 +20,9 @@ def run():
         except TestFailure as e:
             TestHandler.report(str(e), test_name)
         except Exception as e:
+            print_tb(e.__traceback__)
             TestHandler.report(f"Unhandled exception -- {str(e)}", test_name)
         else:
             TestHandler.testpass(test_name, no_shutdown=True)
+
+    TestHandler.message("All tests passed 🎉")
