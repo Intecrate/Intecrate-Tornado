@@ -1,12 +1,15 @@
 from traceback import print_tb
 from typing import Callable
-from tests.workflows.user import user_test
 from tests.test_handler import TestFailure, TestHandler
+
+from tests.workflows.user import user_test
+from tests.workflows.admin import admin_test
 
 TestHandler.start_server()
 
 TESTS: dict[str, Callable] = {
-    "User Management" : user_test
+    "User Management" : user_test,
+    "Admin Control" : admin_test
 }
 
 

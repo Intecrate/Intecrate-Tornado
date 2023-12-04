@@ -31,12 +31,16 @@ class TestHandler:
     secrets = {}
     log_path = os.path.realpath(os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "server.log"))
 
-    @staticmethod
-    def start_server() -> None:
+    @classmethod
+    def start_server(cls) -> None:
         """Starts the server daemon thread"""
 
         path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..")
         os.chdir(path)
+
+        # clear server log
+        with open(cls.log_path, 'wb') as f:
+            f.write(b'')
 
         ServerManager.start_server()
 
@@ -87,6 +91,10 @@ class TestHandler:
             test_name: The name of the test that is being reported
         
         """
+        # Write log
+        # ServerManager.write_log(cls.log_path)
+        ServerManager.stop_server()
+
         print(f"\033[91mTest {test_name} failed: {message}\033[0m\n"
               f"Log available at {cls.log_path}")
         exit(1)
@@ -176,7 +184,7 @@ class TestHandler:
         return obj
 
 class ServerManager:
-    server_process: Optional[subprocess.Popen] = None
+    server_process: Optional[subprocess.Popen[bytes]] = None
 
     @classmethod
     def start_server(cls):
@@ -185,14 +193,16 @@ class ServerManager:
             return
 
         try:
-            cls.server_process = subprocess.Popen(['python', 'scripts/launch.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            cls.server_process = subprocess.Popen([sys.executable, 'scripts/launch.py'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
             assert cls.server_process.stdout is not None
-            for line in cls.server_process.stdout:
-                print(line.decode())
-                if "listening on port" in line.decode():
-                    print(f"Started server with pid {cls.server_process.pid}")
-                    return
+            # for line in cls.server_process.stdout:
+            #     print(line.decode())
+            #     if "listening on port" in line.decode():
+            #         print(f"Started server with pid {cls.server_process.pid}")
+            #         break
+            time.sleep(1)
+            return
                 
         except Exception as e:
             print(f"Error starting server: {e}")
@@ -208,10 +218,26 @@ class ServerManager:
             cls.server_process.terminate()
             cls.server_process.wait()
             cls.server_process = None
-            print("Server stopped.")
+            print("info: server stopped")
         except Exception as e:
             print(f"Error stopping server: {e}")
             os._exit(1)
+
+    # @classmethod
+    # def write_log(cls, filepath: str):
+    #     """Writes the stdout of the server to a file"""
+    #     assert cls.server_process is not None, "Cannot show stdout for unopened server"
+    #     assert cls.server_process.stdout is not None
+
+    #     print("info: writing server log...")
+
+    #     with open(filepath, 'w') as f:
+    #         for line in cls.server_process.stdout:
+    #             f.write(line.decode() + "\n")
+    #             print('writing:', line.decode())
+
+
+
         
 # Scan environment on import
 TestHandler.check_environ()

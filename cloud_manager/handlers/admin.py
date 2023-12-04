@@ -3,7 +3,6 @@ from cloud_manager import datamodel
 from cloud_manager.common.base import BaseHandler, apipost
 from cloud_manager.file_management import FileManager
 
-
 class AdminChallenge(BaseHandler):
     """
     Fetch a challenge by id
@@ -62,12 +61,12 @@ class AdminChallengeCreate(BaseHandler):
         await self.respond(challenge)
 
 
-class AdminChallengeStepList(BaseHandler):
+class AdminStepList(BaseHandler):
     """
-    List all the challenges on
+    List all the steps on a challenge
     """
 
-    ENDPOINT = "/admin/challenge/step/list"
+    ENDPOINT = "/admin/step/list"
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
@@ -106,7 +105,14 @@ class AdminStep(BaseHandler):
 
     @apipost
     async def post(self, request: datamodel.StepRequest):
-        step = await self.db.get_step(request.step_id)
+        log("entered function")
+        # NOTE: Failing bc the step in the test is on an old schema
+        try:
+            step = await self.db.get_step(request.step_id)
+        except Exception as e:
+            log(f"Database raised exception: {str(e)}")
+            raise e
+        log(f"Got step {step}")
 
         if step is None:
             await self.respond(
@@ -116,6 +122,8 @@ class AdminStep(BaseHandler):
             )
         else:
             await self.respond(step)
+
+        log(f"Sent step")
 
 
 class AdminChallengeDelete(BaseHandler):

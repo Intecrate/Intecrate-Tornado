@@ -22,7 +22,7 @@ with open(os.path.expanduser(global_config["secrets_path"]), "r") as f:
 
 AUTORELOAD: bool = False
 DEBUG: bool = True
-LOGFILE: str = "./server.log"
+LOGFILE: str = os.path.realpath("./server.log")
 
 
 DB_PATH = global_config["db_path"]

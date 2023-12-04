@@ -480,8 +480,9 @@ class Database:
             return None
 
         result["id"] = str(result["_id"])
-        del result["_id"]
+        del result["_id"]ww
 
+        # TODO: Catch validation errors like this
         step = datamodel.Step(**result)
 
         assert isinstance(step, datamodel.Step), "failed to translate step to datamodel"

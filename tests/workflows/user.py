@@ -19,7 +19,6 @@ def user_test():
         TestHandler.make_url("/util/whoami"),
         headers={"Authorization": TestHandler.INTECRATE_TEST_USER_KEY} # type: ignore
     )
-
     TestHandler.raise_for_status(r)
     resp = TestHandler.try_deserialize_model(r.json(), expected_class=datamodel.UtilWhoamiResponse)
     if resp.user is None or resp.user.id is None:
