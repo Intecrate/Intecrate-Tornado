@@ -1,6 +1,7 @@
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, api_post
+from cloud_manager.common.base import BaseHandler, api_get, api_post
 from cloud_manager.common.mongo_util import DatabaseError
+from cloud_manager.error import RequestError
 
 
 class ChallengeAdd(BaseHandler):
@@ -12,47 +13,23 @@ class ChallengeAdd(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @api_post
-    async def post(self, request: datamodel.ChallengeRequest):
-        api_key = await self.get_api_key()
+    @api_post()
+    async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
 
-        if api_key is None:
-            await self.respond(
-                datamodel.GenericError(message="User is not logged in", code=0), 403
-            )
-            return
-
+        api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
-        if user is None or user.id is None:
-            await self.respond(
-                datamodel.GenericError(message="Invalid API Key", code=0), 403
-            )
-            return
 
         # Check if user already has challenge
         for active_challenge in user.challenges:
             if active_challenge.challenge_id == request.challenge_id:
-                await self.respond(
-                    datamodel.GenericError(message="Challenge already added", code=0),
-                    400,
-                )
+                raise RequestError(message="Challenge already added")
 
         challenge = await self.db.get_challenge_strict(request.challenge_id)
 
         # Add challenge to user
-        try:
-            await self.db.attach_challenge(user.id, challenge.id)
-        except DatabaseError as e:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"Failed to attach challenge {challenge.id}: {str(e)}",
-                    code=0,
-                ),
-                500,
-            )
-            return
+        await self.db.attach_challenge(user.id, challenge.id)
 
-        await self.respond(challenge)
+        return challenge
 
 
 class ChallengeList(BaseHandler):
@@ -63,18 +40,11 @@ class ChallengeList(BaseHandler):
     ENDPOINT = "/challenge/list"
     EXPECTED_RESPONSE = datamodel.ChallengeList
 
-    async def get(self):
-        api_key = await self.get_api_key()
-
-        if api_key is None:
-            await self.respond(
-                datamodel.GenericError(message="User is not logged in", code=0), 403
-            )
-            return
-
+    @api_get()
+    async def get(self) -> datamodel.ChallengeList:
+        api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
-        if user is None or user.id is None:
-            await self.respond(
-                datamodel.GenericError(message="Invalid API Key", code=0), 403
+
+        return datamodel.ChallengeList(
+                challenges=[await self.db.get_challenge_strict(c.challenge_id) for c in user.challenges]
             )
-            return

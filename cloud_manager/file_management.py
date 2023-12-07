@@ -9,11 +9,7 @@ from cloud_manager import datamodel
 from cloud_manager.common.mongo_util import Database
 from cloud_manager.common.settings import DATA_ROOT
 from cloud_manager.common.tools import log, extension_to_resourcetype, maybe_makedirs
-
-
-class FileManagementError(Exception):
-    ...
-
+from cloud_manager.error import FileManagerError
 
 class FileManager:
     _instance = None
@@ -80,7 +76,7 @@ class FileManager:
             shutil.rmtree(challenge_dir)
         except Exception as e:
             log(str(e), status="error")
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Failed to delete challenge {challenge_id} directory"
             )
 
@@ -110,10 +106,10 @@ class FileManager:
 
         # Validate everything
         if not os.path.exists(temp_filepath):
-            raise FileManagementError(f"File {temp_filepath} does not exist")
+            raise FileManagerError(f"File {temp_filepath} does not exist")
         file_extension = temp_filepath.split(".")[-1].lower()
         if file_extension not in ["mp4"]:
-            raise FileManagementError(f"Unsupported video type '{file_extension}'")
+            raise FileManagerError(f"Unsupported video type '{file_extension}'")
 
         # Create in db
         step = await self.db.create_step(challenge_id, step_name, "PLACEHOLDER")
@@ -129,7 +125,7 @@ class FileManager:
         shutil.move(temp_filepath, destination)
 
         if not os.path.exists(destination):
-            raise FileManagementError(f"Failed to move video into new step")
+            raise FileManagerError(f"Failed to move video into new step")
 
         # Set path path in db
         rel_path = os.path.relpath(destination, self.base_dir)
@@ -151,7 +147,7 @@ class FileManager:
             shutil.rmtree(os.path.dirname(step.video_path))
         except Exception as e:
             log(str(e), status="error")
-            FileManagementError(f"Failed to delete step {step_id} directory")
+            FileManagerError(f"Failed to delete step {step_id} directory")
 
     async def add_step_resource(
         self, step_id: str, prompt: str, temp_filepath: str
@@ -175,7 +171,7 @@ class FileManager:
 
         resource_type = extension_to_resourcetype(file_extension.lower())
         if resource_type is None:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Could not convert {file_extension} into resource type"
             )
 
@@ -199,7 +195,7 @@ class FileManager:
         shutil.move(temp_filepath, destination)
 
         if not os.path.exists(destination):
-            raise FileManagementError(f"Failed to move resource into step")
+            raise FileManagerError(f"Failed to move resource into step")
 
         # Set path in db
         rel_path = os.path.relpath(destination, self.base_dir)
@@ -224,25 +220,25 @@ class FileManager:
 
         step = await self.db.get_step_strict(step_id)
         if resource_id not in step.help_resources:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Resource {resource_id} does not belong to step {step_id}"
             )
 
         file_extension = temp_filepath.split(".")[-1].lower()
         resource_type = extension_to_resourcetype(file_extension.lower())
         if resource_type is None:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Could not convert {file_extension} into resource type"
             )
 
         resource = await self.db.get_step_resource(step_id, resource_id)
         if resource is None:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Could not find resource {resource_id} on step {step_id}"
             )
 
         if resource.resource_type != resource_type:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Cannot change resource {resource_id} type on step {step_id} from {resource.resource_type} to {resource_type}"
             )
 
@@ -264,7 +260,7 @@ class FileManager:
 
         step = await self.db.get_step_strict(step_id)
         if resource_id not in step.help_resources:
-            raise FileManagementError(
+            raise FileManagerError(
                 f"Resource {resource_id} does not belong to step {step_id}"
             )
 
@@ -274,7 +270,7 @@ class FileManager:
         else:
             resource_path = resource.resource_path
             if not os.path.exists(resource_path):
-                raise FileManagementError(f"Resource content does not exist locally")
+                raise FileManagerError(f"Resource content does not exist locally")
             os.remove(resource_path)
 
         await self.db.delete_step_resource(step_id, resource_id)

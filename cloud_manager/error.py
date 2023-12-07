@@ -9,6 +9,7 @@ class CloudManagerError(BaseException):
 
     def __init__(self, message: str) -> None:
         self.message = message
+        self.code = 500
         super().__init__(message)
 
 
@@ -25,7 +26,6 @@ class CloudManagerError(BaseException):
             **self.json
         )
 
-
 class DatabaseError(CloudManagerError):
 
     DATAMODEL = datamodel.DatabaseError
@@ -34,5 +34,31 @@ class DatabaseError(CloudManagerError):
         self.message = message
         self.operation = operation
         self.child_error = child_error
+        self.code = 502
         super().__init__(message)
 
+class RequestError(CloudManagerError):
+
+    DATAMODEL = datamodel.RequestError
+class AuthenticationError(CloudManagerError):
+
+    DATAMODEL = datamodel.AuthenticationError
+
+    def __init__(self, message: str) -> None:
+        self.code = 403
+        super().__init__(message)
+
+
+class FileManagerError(CloudManagerError):
+
+    DATAMODEL = datamodel.FileManagerError
+class InternalError(CloudManagerError):
+
+    DATAMODEL = datamodel.InternalError
+
+    def __init__(self, message: str, operation: str, child_error: Optional[Exception] = None) -> None:
+        self.message = message
+        self.operation = operation
+        self.child_error = child_error
+        self.code = 500
+        super().__init__(message)

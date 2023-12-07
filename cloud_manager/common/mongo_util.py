@@ -76,24 +76,40 @@ class Database:
         
 
     async def ping(self):
+        """Pings atlas to check connection
+        
+        Raises:
+            DatabaseError if no connection can be resolved
+        """
         log("pinging atlas...", status="debug")
         try:
             response = await self._client.admin.command("ping")
             log(str(response))
             log("Successfully connected to MongoDB! 🔥🔥")
         except pymongo.errors.ServerSelectionTimeoutError:
-            log(f"Failed to connect to MongoDB 💔💔")
+            raise DatabaseError(
+                message=f"Failed to connect to MongoDB",
+                operation="Ping")
 
     async def add_user(
         self, name: str, email: str, birthday: str, password_hash: str, api_key: str
-    ) -> datamodel.UserWithPass:
+    ) -> datamodel.User:
         """Adds a user to the database
 
         api_key will be changed if it already exists!
 
         Args:
-            name: User name
-            email:
+            name: User name of the user
+            email: The email of the user
+            birthday: The birthday of the user
+            password_hash: The password_hash of the user
+            api_key: The api key of the user
+
+        Returns:
+            A datamodel object of the user
+
+        Raises:
+            DatabaseError if user cannot be created
         """
 
         while await self._key_exists(api_key):
@@ -103,33 +119,48 @@ class Database:
             )
             api_key = str(uuid.uuid4())
 
-        body = {
-            "name": name,
-            "email": email,
-            "birthday": birthday,
-            "passwordHash": password_hash,
-            "apiKey": api_key,
-            "permissionLevel": 0,
-        }
+        upload_model = datamodel.UserWithPass(
+            id="tmp",
+            name=name,
+            email=email,
+            birthday=birthday,
+            passwordHash=password_hash,
+            apiKey=api_key,
+            permissionLevel=0,
+            challenges=[]
+        )
+        upload_json = upload_model.model_dump(by_alias=True)
+        del upload_json["id"]
 
-        r = await self.users.insert_one(body)
+        r = await self.users.insert_one(upload_json)
 
-        del body["_id"]
-        body["id"] = str(r.inserted_id)
+        try:
+            user =  await self.get_user_strict(str(r.inserted_id))
+        except Exception as e:
+            raise DatabaseError(
+                message="Unable to create new user",
+                operation="Add user",
+                child_error=e
+            )
 
-        model = self.try_deserialize(body, datamodel.UserWithPass)
+        log(f"added user {user.id} to mongodb", status="debug")
 
-        log(f"added user {model.id} to mongodb", status="debug")
-
-        return model
+        return user
 
     async def get_user(self, user_id: str) -> Optional[datamodel.User]:
-        """Gets a user by their id"""
+        """Gets a user by their id
+        
+        Args:
+            user_id: The id of the user to fetch
 
-        assert isinstance(user_id, str), f"illegal type {type(user_id)}"
+        Returns:
+            A datamodel of the user, or None if no user exists
+        """
+
+        if not isinstance(user_id, str):
+            log(f"User id '{user_id}' is not a string", status='warn')
 
         filter = {"_id": ObjectId(user_id)}
-
         result = await self.users.find_one(filter)
 
         if result is None:
@@ -143,7 +174,7 @@ class Database:
 
         user = self.try_deserialize(result, datamodel.User)
 
-        log(f"fetched user {user.name} from id {user_id}", status="debug")
+        log(f"Fetched user {user.name} from id {user_id}", status="debug")
 
         return user
     
@@ -169,7 +200,14 @@ class Database:
             )
 
     async def id_by_email(self, email: str) -> Optional[str]:
-        """Get id by email"""
+        """Fetches a user's id by their email
+        
+        Args:
+            email: The email to fetch by
+
+        Returns:
+            The id of the matching user, or None if no user/too many users
+        """
 
         stack = []
 
@@ -188,7 +226,14 @@ class Database:
         return id
 
     async def get_password_hash(self, user_id: str) -> Optional[str]:
-        """Gets a password hash from the user id"""
+        """Gets a password hash from the user id
+        
+        Args:   
+            user_id: The id of the user to target
+        
+        Returns:
+            The password hash, or None if no user exists
+        """
 
         log(f"Attempting retrieval of user {user_id} password hash", "info")
 
@@ -204,7 +249,14 @@ class Database:
         return result.get("passwordHash", None)
 
     async def _key_exists(self, api_key: str) -> bool:
-        """Checks if an API Key Exists"""
+        """Checks if an API Key Exists
+        
+        Args:
+            api_key: The API key to check
+        
+        Returns:
+            True if the key exists, false otherwise
+        """
 
         filter = {"apiKey": api_key}
 
@@ -214,19 +266,34 @@ class Database:
             return False
         return True
 
-    async def user_by_key(self, api_key: str) -> Optional[datamodel.User]:
-        """Gets a user by their API key"""
+    async def user_by_key(self, api_key: str) -> datamodel.User:
+        """Gets a user by their API key
+        
+        Args:
+            api_key: The api key of the user
+
+        Returns:
+            A datamodel of the user
+
+        Raises:
+            DatabaseError if no user exists
+        """
 
         if not await self._key_exists(api_key):
             log(f"no api key {api_key} exists", "error")
-            return None
+            raise DatabaseError(
+                message=f"No api key {api_key} exists",
+                operation="Get user by key")
 
         filter = {"apiKey": api_key}
 
         result = await self.users.find_one(filter)
 
         if result is None:
-            return None
+            raise DatabaseError(
+                message=f"No user with api key {api_key} exists",
+                operation="Get user by key"
+            )
 
         result["id"] = str(result["_id"])
         del result["_id"]
@@ -389,23 +456,21 @@ class Database:
 
         await self.get_challenge_strict(challenge_id)
 
-        step = datamodel.Step(
-            id=None,
+        upload_model = datamodel.Step(
+            id="tmp",
             challengeId=challenge_id,
             videoPath=video_path,
             stepName=step_name,
             helpResources=[],
         )
 
-        result = await self.steps.insert_one(step.model_dump(by_alias=True))
-        step.id = str(result.inserted_id)
+        upload_json = upload_model.model_dump(by_alias=True)
+        del upload_json['id']
 
-        if result.acknowledged:
-            log(f"successfully created step {step.id}", status="debug")
-        else:
-            raise DatabaseError(
-                message="Failed to create new step",
-                operation="Create step")
+        result = await self.steps.insert_one(upload_json)
+        upload_json['id'] = str(result.inserted_id)
+
+        step = self.try_deserialize(upload_json, datamodel.Step)
 
         log(f"attaching step to challenge {challenge_id}", status="debug")
 
@@ -476,10 +541,7 @@ class Database:
         result["id"] = str(id)
         del result["_id"]
 
-        challenge = datamodel.Challenge(**result)
-        assert isinstance(
-            challenge, datamodel.Challenge
-        ), "failed to translate challenge to datamodel"
+        challenge = self.try_deserialize(result, datamodel.Challenge)
 
         log(
             f"fetched challenge {challenge.title} from id {challenge_id}",
@@ -662,7 +724,7 @@ class Database:
             )
             return None
 
-        return datamodel.StepResource(**step_json)
+        return self.try_deserialize(step_json, datamodel.StepResource)
 
     async def modify_step_resource_prompt(
         self, step_id: str, resource_id: str, new_prompt: str
@@ -756,7 +818,7 @@ class Database:
             c["id"] = str(c["_id"])
             del c["_id"]
 
-            challenges.append(datamodel.Challenge(**c))
+            challenges.append(self.try_deserialize(c, datamodel.Challenge))
 
         return challenges
 
@@ -958,9 +1020,9 @@ def test():
         # ----- Test password hash Retrieval ----- #
 
         fetched_hash = await db.get_password_hash(user.id)
-        if fetched_hash != user.password_hash:
+        if fetched_hash != password_hash:
             raise Exception(
-                f"Mismatched Hashes: '{user.password_hash}' != '{fetched_hash}'"
+                f"Mismatched Hashes: '{password_hash}' != '{fetched_hash}'"
             )
 
         # ----- Challenge Operations ----- #

@@ -1,6 +1,7 @@
 from cloud_manager.common.tools import log
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, api_post
+from cloud_manager.common.base import BaseHandler, api_get, api_post
+from cloud_manager.error import RequestError
 from cloud_manager.file_management import FileManager
 
 class AdminChallenge(BaseHandler):
@@ -13,9 +14,10 @@ class AdminChallenge(BaseHandler):
     EXPECTED_RESPONSE = datamodel.Challenge
 
     @api_post
-    async def post(self, request: datamodel.ChallengeRequest):
+    async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
+        await self.assert_admin()
         challenge_id = request.challenge_id
-        await self.respond(await self.db.get_challenge_strict(challenge_id))
+        return await self.db.get_challenge_strict(challenge_id)
 
 
 class AdminChallengeList(BaseHandler):
@@ -26,10 +28,11 @@ class AdminChallengeList(BaseHandler):
     ENDPOINT = "/admin/challenge/list"
     EXPECTED_RESPONSE = datamodel.ChallengeList
 
-    async def get(self):
+    @api_get()
+    async def get(self) -> datamodel.ChallengeList:
+        await self.assert_admin()
         challenges = await self.db.list_challenges()
-
-        await self.respond(datamodel.ChallengeList(challenges=challenges))
+        return datamodel.ChallengeList(challenges=challenges)
 
 
 class AdminChallengeCreate(BaseHandler):
@@ -41,15 +44,14 @@ class AdminChallengeCreate(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeCreateRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @api_post
-    async def post(self, request: datamodel.ChallengeCreateRequest):
+    @api_post()
+    async def post(self, request: datamodel.ChallengeCreateRequest) -> datamodel.Challenge:
+        await self.assert_admin()
         fm = FileManager.get_instance()
-
         challenge = await fm.create_challenge(
             request.title, request.description, request.cover_image
         )
-
-        await self.respond(challenge)
+        return challenge
 
 
 class AdminStepList(BaseHandler):
@@ -61,10 +63,10 @@ class AdminStepList(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
-    @api_post
-    async def post(self, request: datamodel.ChallengeRequest):
+    @api_post()
+    async def post(self, request: datamodel.ChallengeRequest) -> datamodel.StepList:
+        await self.assert_admin()
         challenge = await self.db.get_challenge_strict(request.challenge_id)
-
         steps: list[datamodel.Step] = []
         for step_id in challenge.steps:
             step = await self.db.get_step(step_id)
@@ -73,7 +75,7 @@ class AdminStepList(BaseHandler):
                 continue
             steps.append(step)
 
-        await self.respond(datamodel.StepList(steps=steps))
+        return datamodel.StepList(steps=steps)
 
 
 class AdminStep(BaseHandler):
@@ -85,11 +87,10 @@ class AdminStep(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepRequest
     EXPECTED_RESPONSE = datamodel.Step
 
-    @api_post
-    async def post(self, request: datamodel.StepRequest):
-            
-            
-            await self.respond( await self.db.get_step_strict(request.step_id))
+    @api_post()
+    async def post(self, request: datamodel.StepRequest) -> datamodel.Step:    
+        await self.assert_admin()
+        return await self.db.get_step_strict(request.step_id)
 
 
 
@@ -103,21 +104,15 @@ class AdminChallengeDelete(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.MessageResponse
 
-    @api_post
-    async def delete(self, request: datamodel.ChallengeRequest):
+    @api_post()
+    async def delete(self, request: datamodel.ChallengeRequest) -> datamodel.MessageResponse:
+        await self.assert_admin()
         fm = FileManager.get_instance()
-        try:
-            await fm.delete_challenge(request.challenge_id)
-        except Exception as e:
-            await self.respond(datamodel.GenericError(message=str(e), code=0), 500)
-            return
+        await fm.delete_challenge(request.challenge_id)
 
-        await self.respond(
-            datamodel.MessageResponse(
+        return datamodel.MessageResponse(
                 message=f"Successfully deleted challenge {request.challenge_id}"
             )
-        )
-
 
 class AdminStepCreate(BaseHandler):
     """
@@ -128,9 +123,9 @@ class AdminStepCreate(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepCreateRequest
     EXPECTED_RESPONSE = datamodel.Step
 
-    @api_post
-    async def post(self, request: datamodel.StepCreateRequest):
+    @api_post()
+    async def post(self, request: datamodel.StepCreateRequest) -> datamodel.Step:
+        await self.assert_admin()
+
         # Not currently implemented via api
-        await self.respond(
-            datamodel.GenericError(message="Not Implemented through API", code=0)
-        )
+        raise RequestError(message="Not Implemented through API")
