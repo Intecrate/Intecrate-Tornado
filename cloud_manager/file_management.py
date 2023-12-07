@@ -144,9 +144,7 @@ class FileManager:
             step_id: The id of the step to delete
         """
 
-        step = await self.db.get_step(step_id)
-        if step is None:
-            raise FileManagementError(f"Step {step_id} does not exist")
+        step = await self.db.get_step_strict(step_id)
 
         await self.db.delete_step(step_id)
         try:
@@ -173,9 +171,7 @@ class FileManager:
 
         # Validate everything
         file_extension = temp_filepath.split(".")[-1].lower()
-        step = await self.db.get_step(step_id)
-        if step is None:
-            raise FileManagementError(f"Step {step_id} does not exist")
+        step = await self.db.get_step_strict(step_id)
 
         resource_type = extension_to_resourcetype(file_extension.lower())
         if resource_type is None:
@@ -226,9 +222,7 @@ class FileManager:
             A datamodel object of the step resource
         """
 
-        step = await self.db.get_step(step_id)
-        if step is None:
-            raise FileManagementError(f"Step {step_id} does not exist")
+        step = await self.db.get_step_strict(step_id)
         if resource_id not in step.help_resources:
             raise FileManagementError(
                 f"Resource {resource_id} does not belong to step {step_id}"
@@ -268,9 +262,7 @@ class FileManager:
             resource_id: The id of the resource to delete
         """
 
-        step = await self.db.get_step(step_id)
-        if step is None:
-            raise FileManagementError(f"Step {step_id} does not exist")
+        step = await self.db.get_step_strict(step_id)
         if resource_id not in step.help_resources:
             raise FileManagementError(
                 f"Resource {resource_id} does not belong to step {step_id}"

@@ -1,5 +1,5 @@
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.common.base import BaseHandler, api_post
 from cloud_manager.common.mongo_util import DatabaseError
 
 
@@ -12,7 +12,7 @@ class ChallengeAdd(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.ChallengeRequest):
         api_key = await self.get_api_key()
 
@@ -37,15 +37,7 @@ class ChallengeAdd(BaseHandler):
                     400,
                 )
 
-        challenge = await self.db.get_challenge(request.challenge_id)
-        if challenge is None or challenge.id is None:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"Challenge {request.challenge_id} does not exist", code=0
-                ),
-                400,
-            )
-            return
+        challenge = await self.db.get_challenge_strict(request.challenge_id)
 
         # Add challenge to user
         try:

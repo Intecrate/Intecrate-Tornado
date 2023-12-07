@@ -1,6 +1,6 @@
 from cloud_manager.common.tools import log
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.common.base import BaseHandler, api_post
 from cloud_manager.file_management import FileManager
 
 class AdminChallenge(BaseHandler):
@@ -12,19 +12,10 @@ class AdminChallenge(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.ChallengeRequest):
         challenge_id = request.challenge_id
-        challenge = await self.db.get_challenge(challenge_id)
-        if challenge is None:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"No challenge {challenge_id} exists", code=0
-                ), 400
-            )
-
-        else:
-            await self.respond(challenge)
+        await self.respond(await self.db.get_challenge_strict(challenge_id))
 
 
 class AdminChallengeList(BaseHandler):
@@ -50,7 +41,7 @@ class AdminChallengeCreate(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeCreateRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.ChallengeCreateRequest):
         fm = FileManager.get_instance()
 
@@ -70,24 +61,15 @@ class AdminStepList(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.ChallengeRequest):
-        challenge = await self.db.get_challenge(request.challenge_id)
-
-        if challenge is None:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"No challenge {request.challenge_id} exists", code=0
-                ),
-                400,
-            )
-            return
+        challenge = await self.db.get_challenge_strict(request.challenge_id)
 
         steps: list[datamodel.Step] = []
         for step_id in challenge.steps:
             step = await self.db.get_step(step_id)
             if step is None:
-                log(f"challenge {challenge.id} contains nonexistent step {step_id}")
+                log(f"challenge {challenge.id} contains nonexistent step {step_id}", status="error")
                 continue
             steps.append(step)
 
@@ -103,27 +85,13 @@ class AdminStep(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepRequest
     EXPECTED_RESPONSE = datamodel.Step
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.StepRequest):
-        log("entered function")
-        # NOTE: Failing bc the step in the test is on an old schema
-        try:
-            step = await self.db.get_step(request.step_id)
-        except Exception as e:
-            log(f"Database raised exception: {str(e)}")
-            raise e
-        log(f"Got step {step}")
+            
+            
+            await self.respond( await self.db.get_step_strict(request.step_id))
 
-        if step is None:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"No step {request.step_id} exists", code=0
-                )
-            )
-        else:
-            await self.respond(step)
 
-        log(f"Sent step")
 
 
 class AdminChallengeDelete(BaseHandler):
@@ -135,7 +103,7 @@ class AdminChallengeDelete(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.MessageResponse
 
-    @apipost
+    @api_post
     async def delete(self, request: datamodel.ChallengeRequest):
         fm = FileManager.get_instance()
         try:
@@ -160,7 +128,7 @@ class AdminStepCreate(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepCreateRequest
     EXPECTED_RESPONSE = datamodel.Step
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.StepCreateRequest):
         # Not currently implemented via api
         await self.respond(

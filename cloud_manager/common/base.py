@@ -6,11 +6,14 @@ Licensing Information found at: https://intecrate.co/legal/license
 """
 
 from __future__ import annotations
+import functools
 from pprint import pprint
+from pydantic import ValidationError
 import tornado.web
 import tornado.httpserver
 from cloud_manager.common.tools import log
 import cloud_manager.datamodel as datamodel
+from cloud_manager.datamodel import HttpMethod
 import cloud_manager.common.settings as s
 import cloud_manager.common.mongo_util as mongo_util
 from tornado.httputil import parse_multipart_form_data
@@ -125,35 +128,61 @@ class BaseHandler(tornado.web.RequestHandler):
         return mongo_util.Database.get_instance(testmode=self.settings["testmode"])
 
 
-def apipost(func):
+def api_post(*args):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
-    def wrapper(*args, **kwargs):
-        self = args[0]
+    return lambda x: inner_wrapper(x, HttpMethod.POST)
 
-        EXPECTED_REQUEST = self.EXPECTED_REQUEST
-        assert issubclass(
-            EXPECTED_REQUEST, datamodel.BaseModel
-        ), "Expected class must be datamodel-derived"
+def api_get(*args):
+    """
+    A decorator that allows get methods to be handled via datamodel objects.
+    """
 
-        log("loading request_object", "debug")
-        try:
-            request_object = EXPECTED_REQUEST(**self.args)  # <-- The POST payload
+    return lambda x: inner_wrapper(x, HttpMethod.POST)
 
-        except Exception as e:
-            log(f"Bad request format for {EXPECTED_REQUEST.__name__}", "warn")
-            log(str(e))
-            self.set_status(400)
-            return
+def api_delete(*args):
+    """
+    A decorator that allows post methods to be handled via datamodel objects.
+    """
 
-        print(f"Parsing request into {type(request_object).__name__}:")
-        pprint(request_object.model_dump())
+    return lambda x: inner_wrapper(x, HttpMethod.POST)
 
-        return func(self, request_object)
+def inner_wrapper(func, method: str):
+
+    async def wrapper(self, *args, **kwargs):
+
+        if method in (HttpMethod.POST, HttpMethod.DELETE):
+
+            EXPECTED_REQUEST = self.EXPECTED_REQUEST
+            assert issubclass(
+                EXPECTED_REQUEST, datamodel.BaseModel
+            ), "Expected class must be datamodel-derived"
+
+            log("loading request_object", "debug")
+            try:
+                request_object = EXPECTED_REQUEST(**self.args)  # <-- The POST payload
+
+            except ValidationError as e:
+                log(f"Bad request format for {EXPECTED_REQUEST.__name__}", "warn")
+                
+                return
+
+            print(f"Parsing request into {type(request_object).__name__}:")
+            pprint(request_object.model_dump())
+
+            return func(self, request_object)
+        
+        elif method == HttpMethod.GET:
+            pass # nothing needed as of now
+
+        else:
+            raise 
 
     return wrapper
+
+
 
 
 def host(

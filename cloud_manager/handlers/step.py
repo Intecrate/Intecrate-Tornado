@@ -3,7 +3,7 @@ from uuid import uuid4
 from cloud_manager.common.tools import log
 import cloud_manager.common.tools as tools
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.common.base import BaseHandler, api_post
 from cloud_manager.file_management import FileManager
 from cloud_manager.datamodel import ResponseContainer
 from cloud_manager.common.mongo_util import DatabaseError
@@ -18,7 +18,7 @@ class StepList(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.ChallengeRequest):
         api_key = await self.get_api_key()
 
@@ -50,15 +50,7 @@ class StepList(BaseHandler):
             )
             return
 
-        challenge = await self.db.get_challenge(request.challenge_id)
-        if challenge is None or challenge.id is None:
-            await self.respond(
-                datamodel.GenericError(
-                    message=f"Challenge {request.challenge_id} does not exist", code=0
-                ),
-                400,
-            )
-            return
+        challenge = await self.db.get_challenge_strict(request.challenge_id)
 
         steps: list[datamodel.Step] = []
         for step in challenge.steps:
@@ -66,7 +58,7 @@ class StepList(BaseHandler):
             if s is None:
                 log(
                     f"Challenge {challenge.id} references nonexistent step",
-                    status="warn",
+                    status="error",
                 )
                 continue
             steps.append(s)
@@ -83,14 +75,9 @@ class StepResourceList(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepRequest
     EXPECTED_RESPONSE = datamodel.StepResourceList
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.StepRequest):
-        step = await self.db.get_step(request.step_id)
-        if step is None or step.id is None:
-            await self.respond(
-                datamodel.GenericError(message="Step does not exist", code=0), 400
-            )
-            return
+        step = await self.db.get_step_strict(request.step_id)
 
         api_key = await self.get_api_key()
 
@@ -134,14 +121,9 @@ class StepResource(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepResourceRequest
     EXPECTED_RESPONSE = datamodel.StepResource
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.StepResourceRequest):
-        step = await self.db.get_step(request.step_id)
-        if step is None or step.id is None:
-            await self.respond(
-                datamodel.GenericError(message="Step does not exist", code=0), 400
-            )
-            return
+        step = await self.db.get_step_strict(request.step_id)
 
         matching_resource = None
         for resource in step.help_resources:

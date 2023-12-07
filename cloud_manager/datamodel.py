@@ -106,7 +106,7 @@ class SignupResponse(BaseModel):
 
 
 class Challenge(BaseModel):
-    id: Optional[str] = Field(None, alias="id", description="ObjectID")
+    id: str = Field(alias="id", description="ObjectID")
     title: str = Field(alias="title", description="Challenge title")
     description: str = Field(
         None, alias="description", description="Challenge description"
@@ -219,7 +219,11 @@ class ActiveChallenge(BaseModel):
 
 class GenericError(BaseModel):
     message: str = Field("Unhandled Internal Error", alias="message")
-    code: int = Field(0, alias="code")
+
+class DatabaseError(BaseModel):
+    message: str = Field("Unhandled Database Error", alias="message")
+    operation: str = Field("Unknown", alias="operation")
+    child_error: Optional[str] = Field(None, alias="child_error")
 
 
 # class UserListChallengesResponse(BaseModel):
@@ -239,6 +243,11 @@ class GenericError(BaseModel):
 #     current_step: int = Field(None, alias="currentSteps")
 #     started_on: str = Field(None, alias="startedOn")
 
+
+class HttpMethod(Enum):
+    POST: str
+    GET: str
+    DELETE: str
 
 def test():
     def test():

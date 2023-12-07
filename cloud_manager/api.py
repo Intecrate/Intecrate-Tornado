@@ -7,7 +7,7 @@ Licensing Information found at: https://intecrate.co/legal/license
 
 from __future__ import annotations
 from cloud_manager.common.tools import log, verify_password, hash_str
-from cloud_manager.common.base import BaseHandler, apipost
+from cloud_manager.common.base import BaseHandler, api_post
 from cloud_manager.datamodel import ResponseContainer
 import cloud_manager.datamodel as datamodel
 import cloud_manager.common.settings as s
@@ -45,7 +45,7 @@ class benchmark(BaseHandler):
 
     TEST_REQUEST = datamodel.BenchmarkRequest(anAttribute="123")
 
-    @apipost
+    @api_post
     async def post(self, request):
         assert isinstance(
             request, datamodel.BenchmarkRequest
@@ -73,7 +73,7 @@ class recursiveBenchmark(BaseHandler):
 
     TEST_REQUEST = datamodel.BenchmarkRequest(anAttribute="123")
 
-    @apipost
+    @api_post
     async def post(self, request):
         assert isinstance(
             request, datamodel.BenchmarkRequest
@@ -102,7 +102,7 @@ class login(BaseHandler):
         email="johndoe@example.com", password="Password123"
     )
 
-    @apipost
+    @api_post
     async def post(self, request: datamodel.LoginRequest):
         email = request.email
         password = request.password
@@ -140,12 +140,7 @@ class login(BaseHandler):
             await self.respond(response)
             return
 
-        user = await self.db.get_user(id)
-
-        if user is None:
-            response.message = "User does not exist"
-            await self.respond(response)
-            return
+        user = await self.db.get_user_strict(id)
 
         password_hash = await self.db.get_password_hash(user.id)
 
@@ -188,7 +183,7 @@ class signup(BaseHandler):
         birthday="02-01-2005",
     )
 
-    @apipost
+    @api_post
     async def post(self, request):
         name = request.name
         email = request.email
@@ -302,7 +297,7 @@ class checkAuth(BaseHandler):
 
 #     TEST_REQUEST = datamodel.ChallengeRequest(id="64dbb9f7dffb45f55a2e10e1")
 
-#     @apipost
+#     @api_post
 #     async def post(self, request):
 #         response = ResponseContainer()
 
@@ -331,7 +326,7 @@ class checkAuth(BaseHandler):
 
 #     TEST_REQUEST = datamodel.ChallengeStepRequest(stepId="64dbbadddffb45f55a2e10e2")
 
-#     @apipost
+#     @api_post
 #     async def post(self, request):
 #         response = ResponseContainer()
 
@@ -401,7 +396,7 @@ class util_checkSyntax(BaseHandler):
         structure="date", content="02-01-2005"
     )
 
-    @apipost
+    @api_post
     async def post(self, request):
         structure = request.structure
         content = request.content
@@ -463,7 +458,7 @@ class user_getApiKey(BaseHandler):
 
     TEST_REQUEST = datamodel.UserRequest(userId="some_invalid_id")
 
-    @apipost
+    @api_post
     async def post(self, request):
         id = request.id
 
@@ -483,17 +478,7 @@ class user_getApiKey(BaseHandler):
         else:
             log("Admin user requesting api key")
 
-        try:
-            user = await self.db.get_user(id)
-        except bson.errors.InvalidId:
-            response.message = "Invalid user id"
-            await self.respond(response)
-            return
-
-        if user is None:
-            response.message = "User does not exist"
-            await self.respond(response)
-            return
+        user = await self.db.get_user_strict(id)
 
         key = user.api_key
 
