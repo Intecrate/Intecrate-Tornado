@@ -25,7 +25,7 @@ DEBUG: bool = True
 LOGFILE: str = os.path.realpath("./server.log")
 
 
-DB_PATH = global_config["db_path"]
+# DB_PATH = global_config["db_path"]
 DATA_ROOT = os.path.expanduser(global_config["data_root"])
 ROOT_DB_PASSWORD = "030987a6-f874-4c17-aac6-fbcd3388baf6"
 
