@@ -134,7 +134,7 @@ class GetApiKey(BaseHandler):
 
     TEST_REQUEST = datamodel.UserRequest(userId="some_invalid_id")
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(
         self, request: datamodel.UserRequest
     ) -> datamodel.UserGetApiKeyResponse:

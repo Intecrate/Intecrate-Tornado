@@ -14,7 +14,7 @@ class util_whoami(BaseHandler):
     ENDPOINT = "/util/whoami"
     EXPECTED_RESPONSE = datamodel.User
 
-    @api_get()
+    @api_get(requires_login=True)
     async def get(self) -> datamodel.User:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)

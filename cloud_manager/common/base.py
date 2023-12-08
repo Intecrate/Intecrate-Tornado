@@ -178,34 +178,44 @@ class BaseHandler(tornado.web.RequestHandler):
         return mongo_util.Database.get_instance(testmode=self.settings["testmode"])
 
 
-def api_post(requires_admin: bool = False):
+def api_post(requires_admin: bool = False, requires_login: bool = False):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.POST, requires_admin=requires_admin)
+    return lambda x: inner_wrapper(
+        x, HttpMethod.POST, requires_admin=requires_admin, requires_login=requires_login
+    )
 
 
-def api_get(requires_admin: bool = False):
+def api_get(requires_admin: bool = False, requires_login: bool = False):
     """
     A decorator that allows get methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.GET, requires_admin=requires_admin)
+    return lambda x: inner_wrapper(
+        x, HttpMethod.GET, requires_admin=requires_admin, requires_login=requires_login
+    )
 
 
-def api_delete(requires_admin: bool = False):
+def api_delete(requires_admin: bool = False, requires_login: bool = False):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.DELETE, requires_admin=requires_admin)
+    return lambda x: inner_wrapper(
+        x,
+        HttpMethod.DELETE,
+        requires_admin=requires_admin,
+        requires_login=requires_login,
+    )
 
 
 def inner_wrapper(
     func: Callable[..., Awaitable[datamodel.BaseModel]],
     method: HttpMethod,
     requires_admin: bool,
+    requires_login: bool,
 ):
     """An internal wrapper that handles errors in an handler
 
@@ -216,11 +226,21 @@ def inner_wrapper(
     async def wrapper(self: BaseHandler, *args, **kwargs):
         request_object: Optional[BaseHandler]
 
+        # Check authentication before processing request
         if requires_admin:
             try:
                 await self.assert_admin()
             except AuthenticationError as e:
                 await self.respond(e.model, e.code)
+                return
+        if requires_login:
+            try:
+                key = await self.get_api_key_strict()
+                await self.db.user_by_key(key)
+            except CloudManagerError as e:
+                await self.respond(
+                    AuthenticationError("This endpoint requires login").model
+                )
                 return
 
         # Prepare request

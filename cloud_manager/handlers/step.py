@@ -19,7 +19,7 @@ class StepList(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(self, request: datamodel.ChallengeRequest) -> datamodel.StepList:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
@@ -58,7 +58,7 @@ class StepResourceList(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepRequest
     EXPECTED_RESPONSE = datamodel.StepResourceList
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(self, request: datamodel.StepRequest) -> datamodel.StepResourceList:
         step = await self.db.get_step_strict(request.step_id)
         api_key = await self.get_api_key_strict()
@@ -85,7 +85,7 @@ class StepResource(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepResourceRequest
     EXPECTED_RESPONSE = datamodel.StepResource
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(
         self, request: datamodel.StepResourceRequest
     ) -> datamodel.StepResource:

@@ -13,7 +13,7 @@ class Challenge(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
@@ -35,7 +35,7 @@ class ChallengeAdd(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.Challenge
 
-    @api_post()
+    @api_post(requires_login=True)
     async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
@@ -61,7 +61,7 @@ class ChallengeList(BaseHandler):
     ENDPOINT = "/challenge/list"
     EXPECTED_RESPONSE = datamodel.ChallengeList
 
-    @api_get()
+    @api_get(requires_login=True)
     async def get(self) -> datamodel.ChallengeList:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
