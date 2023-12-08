@@ -5,6 +5,7 @@ Copyright © 2023 Intecrate. All rights reserved.
 Licensing Information found at: https://intecrate.co/legal/license
 """
 
+from typing import Type
 from cloud_manager.common.base import BaseHandler
 
 # Load handlers
@@ -16,7 +17,7 @@ from cloud_manager.handlers.user import *
 from cloud_manager.handlers.util import *
 
 
-def get_map() -> list[tuple]:
+def get_map() -> list[tuple[str, Type[BaseHandler]]]:
     """
     Gets a map of routes to handlers
     """

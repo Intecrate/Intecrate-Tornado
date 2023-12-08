@@ -1,4 +1,3 @@
-
 import uuid
 from cloud_manager import datamodel
 from cloud_manager.common.base import BaseHandler, api_post
@@ -6,6 +5,7 @@ from cloud_manager.common.tools import hash_str, log, verify_password
 from cloud_manager.error import AuthenticationError, RequestError
 from cloud_manager.handlers.util import util_checkSyntax
 from dateutil.parser import parse as date_parse
+
 
 class Login(BaseHandler):
     """
@@ -20,11 +20,10 @@ class Login(BaseHandler):
         email="johndoe@example.com", password="Password123"
     )
 
-    @api_post
+    @api_post()
     async def post(self, request: datamodel.LoginRequest) -> datamodel.LoginResponse:
         email = request.email
         password = request.password
-
 
         log(f"Got login from '{email}'")
 
@@ -39,7 +38,6 @@ class Login(BaseHandler):
                 raise RequestError("Invalid email")
         else:
             raise RequestError("Invalid email")
-
 
         # Check with database for user
         id = await self.db.id_by_email(email)
@@ -57,11 +55,7 @@ class Login(BaseHandler):
             raise AuthenticationError(f"Invalid password for {user.id}")
 
         else:
-            return datamodel.LoginResponse(
-                success=True,
-                message="",
-                user=user
-            )
+            return datamodel.LoginResponse(success=True, message="", user=user)
 
 
 class Signup(BaseHandler):
@@ -80,21 +74,16 @@ class Signup(BaseHandler):
         birthday="02-01-2005",
     )
 
-    @api_post
+    @api_post()
     async def post(self, request: datamodel.SignupRequest) -> datamodel.SignupResponse:
         name = request.name
         email = request.email
         password = request.password
         birthday_str = request.birthday
 
-
-
         if not util_checkSyntax.date_syntax(birthday_str):
             return datamodel.SignupResponse(
-                success=False,
-                message="Bad birthday syntax",
-                errorCode=0,
-                user=None
+                success=False, message="Bad birthday syntax", errorCode=0, user=None
             )
 
         birthday_datetime = date_parse(birthday_str)
@@ -104,10 +93,7 @@ class Signup(BaseHandler):
 
         if not util_checkSyntax.email_syntax(email):
             return datamodel.SignupResponse(
-                success=False,
-                message="Bad email syntax",
-                errorCode=0,
-                user=None
+                success=False, message="Bad email syntax", errorCode=0, user=None
             )
 
         if await self.db.id_by_email(email) is not None:
@@ -115,7 +101,7 @@ class Signup(BaseHandler):
                 success=False,
                 message="Email already attached to an account",
                 errorCode=0,
-                user=None
+                user=None,
             )
 
         log("Got valid signup request")
@@ -135,8 +121,9 @@ class Signup(BaseHandler):
             success=True,
             message="Successfully created new user",
             errorCode=0,
-            user=user
+            user=user,
         )
+
 
 class GetApiKey(BaseHandler):
     """Gets the user's API key from the user id"""
@@ -147,13 +134,14 @@ class GetApiKey(BaseHandler):
 
     TEST_REQUEST = datamodel.UserRequest(userId="some_invalid_id")
 
-    @api_post
-    async def post(self, request: datamodel.UserRequest) -> datamodel.UserGetApiKeyResponse:
+    @api_post()
+    async def post(
+        self, request: datamodel.UserRequest
+    ) -> datamodel.UserGetApiKeyResponse:
         await self.assert_admin()
         id = request.id
         user = await self.db.get_user_strict(id)
 
         return datamodel.UserGetApiKeyResponse(
-            apiKey=user.api_key,
-            message="Successfully found api key"
+            apiKey=user.api_key, message="Successfully found api key"
         )

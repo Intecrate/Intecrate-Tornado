@@ -1,10 +1,10 @@
-
 from cloud_manager import datamodel
 from cloud_manager.common.base import BaseHandler, api_get, api_post
 from cloud_manager.common.tools import log
 from cloud_manager.error import RequestError
 from dateutil.parser import parse as date_parse
 import re
+
 
 class util_whoami(BaseHandler):
     """
@@ -35,8 +35,10 @@ class util_checkSyntax(BaseHandler):
         structure="date", content="02-01-2005"
     )
 
-    @api_post
-    async def post(self, request: datamodel.UtilCheckSyntaxRequest) -> datamodel.UtilCheckSyntaxResponse:
+    @api_post()
+    async def post(
+        self, request: datamodel.UtilCheckSyntaxRequest
+    ) -> datamodel.UtilCheckSyntaxResponse:
         structure = request.structure
         content = request.content
 
@@ -49,13 +51,10 @@ class util_checkSyntax(BaseHandler):
         handler = handler_map.get(structure, None)
         if handler is None:
             raise RequestError(f"No structure {structure} exists.")
-        
+
         status = handler(content)
 
-        return datamodel.UtilCheckSyntaxResponse(
-            validSyntax=status
-        )
-
+        return datamodel.UtilCheckSyntaxResponse(validSyntax=status)
 
     @staticmethod
     def date_syntax(content: str) -> bool:

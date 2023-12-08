@@ -19,10 +19,15 @@ import cloud_manager.common.mongo_util as mongo_util
 from tornado.httputil import parse_multipart_form_data
 
 import os
-from typing import Any, Callable, Optional, Type, Union
+from typing import Any, Awaitable, Callable, Optional, Union
 import json
 
-from cloud_manager.error import AuthenticationError, CloudManagerError, InternalError, RequestError
+from cloud_manager.error import (
+    AuthenticationError,
+    CloudManagerError,
+    InternalError,
+    RequestError,
+)
 
 use_https = False
 
@@ -59,40 +64,39 @@ class BaseHandler(tornado.web.RequestHandler):
 
     async def get_api_key(self) -> Optional[str]:
         """Get the API key of the request, if there is one
-        
+
         Returns:
             The api key, or None if none exists
         """
         api_key = self.request.headers.get("Authorization")
         return api_key
-    
+
     async def get_api_key_strict(self) -> str:
         """Gets the API key of the request. Raises exception if none exists
-        
+
         Returns:
             The api key
-        
+
         Raises:
             AuthenticationError if no key exists
         """
-        key =  await self.get_api_key()
+        key = await self.get_api_key()
         if key is not None:
-            return key 
+            return key
         else:
             raise AuthenticationError("This endpoint requires an api key")
-    
 
     async def is_admin(self) -> bool:
         """Checks if the API key belongs to an admin"""
         # "admin_key" : "cda75f74-913b-47a2-b25f-5d7b26c36e06"
         return await self.get_api_key() in s.ADMIN_API_KEYS
-    
+
     async def assert_admin(self) -> str:
         """Asserts that the user is an admin. Raises an error if they are not
-        
+
         Returns:
             The api key of the admin user
-        
+
         Raises:
             AuthenticationError if the user is not admin"""
 
@@ -103,11 +107,10 @@ class BaseHandler(tornado.web.RequestHandler):
             if key is None:
                 raise InternalError(
                     message="is_admin returned true, but key is empty",
-                    operation="assert admin"
+                    operation="assert admin",
                 )
             else:
                 return key
-
 
     def write_error(self, status_code: int, message: str = "None", **kwargs) -> None:
         """Writes error with status"""
@@ -142,16 +145,16 @@ class BaseHandler(tornado.web.RequestHandler):
     ):
         """Writes a response using datamodel"""
 
-        assert isinstance(obj, datamodel.ResponseContainer) or isinstance(
-            obj, datamodel.BaseModel
-        ), f"illegal response type: {type(obj).__name__}"
+        if not isinstance(obj, datamodel.BaseModel):
+            log(f"Obj {obj} is not a datamodel object")
+            raise Exception(f"Obj {obj} is not a datamodel object")
 
         # Load container into datamodel object
         EXPECTED_RESPONSE = getattr(self, "EXPECTED_RESPONSE", None)
 
         if EXPECTED_RESPONSE is None:
             log(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute", "error")
-            raise Exception
+            raise Exception(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute")
 
         if isinstance(obj, datamodel.ResponseContainer):
             model = EXPECTED_RESPONSE(**obj.as_dict())
@@ -175,38 +178,53 @@ class BaseHandler(tornado.web.RequestHandler):
         return mongo_util.Database.get_instance(testmode=self.settings["testmode"])
 
 
-def api_post(*args):
+def api_post(requires_admin: bool = False):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.POST)
+    return lambda x: inner_wrapper(x, HttpMethod.POST, requires_admin=requires_admin)
 
-def api_get(*args):
+
+def api_get(requires_admin: bool = False):
     """
     A decorator that allows get methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.POST)
+    return lambda x: inner_wrapper(x, HttpMethod.GET, requires_admin=requires_admin)
 
-def api_delete(*args):
+
+def api_delete(requires_admin: bool = False):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
-    return lambda x: inner_wrapper(x, HttpMethod.POST)
+    return lambda x: inner_wrapper(x, HttpMethod.DELETE, requires_admin=requires_admin)
 
-def inner_wrapper(func: Callable[..., datamodel.BaseModel], method: HttpMethod):
+
+def inner_wrapper(
+    func: Callable[..., Awaitable[datamodel.BaseModel]],
+    method: HttpMethod,
+    requires_admin: bool,
+):
     """An internal wrapper that handles errors in an handler
-    
+
     Args:
-        func: The handler function 
-        method: """
+        func: The handler function
+        method:"""
 
     async def wrapper(self: BaseHandler, *args, **kwargs):
-
         request_object: Optional[BaseHandler]
 
+        if requires_admin:
+            try:
+                await self.assert_admin()
+            except AuthenticationError as e:
+                await self.respond(e.model, e.code)
+                return
+
+        # Prepare request
+        log(f"Preparing request for {self.__class__.__name__}")
         if method in (HttpMethod.POST, HttpMethod.DELETE):
             # Find EXPECTED_REQUEST
             EXPECTED_REQUEST = self.EXPECTED_REQUEST
@@ -214,21 +232,21 @@ def inner_wrapper(func: Callable[..., datamodel.BaseModel], method: HttpMethod):
                 await self.respond(
                     InternalError(
                         message=f"Handler class {self.__class__.__name__} has no EXPECTED_REQUEST",
-                        operation="Handler wrapper"
-                    ).model, 500
+                        operation="Handler wrapper",
+                    ).model,
+                    500,
                 )
                 return
-            if not issubclass(
-                EXPECTED_REQUEST, datamodel.BaseModel
-            ):
+            if not issubclass(EXPECTED_REQUEST, datamodel.BaseModel):
                 await self.respond(
                     InternalError(
                         message=f"Handler class {self.__class__.__name__} has invalid EXPECTED_REQUEST: '{EXPECTED_REQUEST}'",
-                        operation="Handler wrapper"
-                    ).model, 500
+                        operation="Handler wrapper",
+                    ).model,
+                    500,
                 )
                 return
-            
+
             # Deserialize request
             log("loading request_object", "debug")
             try:
@@ -237,32 +255,34 @@ def inner_wrapper(func: Callable[..., datamodel.BaseModel], method: HttpMethod):
                 await self.respond(
                     RequestError(
                         message=f"Bad request format for {EXPECTED_REQUEST.__name__}"
-                    ).model, 400
+                    ).model,
+                    400,
                 )
                 return
 
             print(f"Parsed request into {type(request_object).__name__}:")
             pprint(request_object.model_dump())
-        
+
         elif method == HttpMethod.GET:
-            pass # nothing needed as of now
             request_object = None
 
         else:
             await self.respond(
                 InternalError(
-                    message=f"Unknown method {method}",
-                    operation="Handler wrapper"
+                    message=f"Unknown method {method}", operation="Handler wrapper"
                 ).model
             )
             return
 
-
+        # Execute handler
+        log(
+            f"Routing request to {self.__class__.__name__} with input: {request_object}"
+        )
         try:
             if request_object is None:
-                response =  func(self)
+                response = await func(self)
             else:
-                response =  func(self, request_object)
+                response = await func(self, request_object)
         except CloudManagerError as e:
             await self.respond(e.model, e.code)
             return
@@ -271,24 +291,25 @@ def inner_wrapper(func: Callable[..., datamodel.BaseModel], method: HttpMethod):
                 InternalError(
                     f"{self.__class__.__name__} raised unhandled error",
                     operation="Handler wrapper",
-                    child_error=e
-                ).model, 500
+                    child_error=e,
+                ).model,
+                500,
             )
             return
 
-        if response is None:
+        # Validate response
+        if not isinstance(response, datamodel.BaseModel):
             await self.respond(
                 InternalError(
-                    message=f"{func.__name__} returned None",
-                    operation="Handler Wrapper"
-                ).model, 500
+                    message=f"{func.__name__} returned illegal type {type(response).__name__}",
+                    operation="Handler Wrapper",
+                ).model,
+                500,
             )
         else:
             await self.respond(response)
 
     return wrapper
-
-
 
 
 def host(

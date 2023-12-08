@@ -11,6 +11,7 @@ from cloud_manager.common.settings import DATA_ROOT
 from cloud_manager.common.tools import log, extension_to_resourcetype, maybe_makedirs
 from cloud_manager.error import FileManagerError
 
+
 class FileManager:
     _instance = None
 

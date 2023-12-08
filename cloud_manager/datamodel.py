@@ -222,9 +222,11 @@ class ActiveChallenge(BaseModel):
 #  Errors
 # --------
 
+
 class GenericError(BaseModel):
     message: str = Field("Unhandled Internal Error", alias="message")
     error_type: str = "Generic Error"
+
 
 class DatabaseError(BaseModel):
     message: str = Field("Unhandled Database Error", alias="message")
@@ -232,9 +234,11 @@ class DatabaseError(BaseModel):
     child_error: Optional[str] = Field(None, alias="child_error")
     error_type: str = "Database Error"
 
+
 class AuthenticationError(BaseModel):
     message: str = Field(alias="message")
     error_type: str = "Authentication Error"
+
 
 class InternalError(BaseModel):
     message: str = Field("Unhandled Internal Error", alias="message")
@@ -242,13 +246,16 @@ class InternalError(BaseModel):
     child_error: Optional[str] = Field(None, alias="child_error")
     error_type: str = "Internal Server Error"
 
+
 class RequestError(BaseModel):
     message: str = Field("Bad Request", alias="message")
     error_type: str = "Request Error"
 
+
 class FileManagerError(BaseModel):
     message: str = Field("Bad Request", alias="message")
     error_type: str = "File Manager Error"
+
 
 # class UserListChallengesResponse(BaseModel):
 #     challenge_count: int = Field(alias="challengeCount", description="integer")
@@ -272,6 +279,7 @@ class HttpMethod(Enum):
     POST = "POST"
     GET = "GET"
     DELETE = "DELETE"
+
 
 def test():
     def test():

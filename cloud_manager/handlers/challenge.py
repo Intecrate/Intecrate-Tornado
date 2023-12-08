@@ -1,7 +1,29 @@
 from cloud_manager import datamodel
 from cloud_manager.common.base import BaseHandler, api_get, api_post
 from cloud_manager.common.mongo_util import DatabaseError
-from cloud_manager.error import RequestError
+from cloud_manager.error import AuthenticationError, RequestError
+
+
+class Challenge(BaseHandler):
+    """
+    Fetches a challenge in a user's account
+    """
+
+    ENDPOINT = "/challenge"
+    EXPECTED_REQUEST = datamodel.ChallengeRequest
+    EXPECTED_RESPONSE = datamodel.Challenge
+
+    @api_post()
+    async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
+        api_key = await self.get_api_key_strict()
+        user = await self.db.user_by_key(api_key)
+
+        # Check if user already has challenge
+        for active_challenge in user.challenges:
+            if active_challenge.challenge_id == request.challenge_id:
+                return await self.db.get_challenge_strict(active_challenge.challenge_id)
+
+        raise AuthenticationError(f"User does not have access to challenge")
 
 
 class ChallengeAdd(BaseHandler):
@@ -15,7 +37,6 @@ class ChallengeAdd(BaseHandler):
 
     @api_post()
     async def post(self, request: datamodel.ChallengeRequest) -> datamodel.Challenge:
-
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
 
@@ -46,5 +67,8 @@ class ChallengeList(BaseHandler):
         user = await self.db.user_by_key(api_key)
 
         return datamodel.ChallengeList(
-                challenges=[await self.db.get_challenge_strict(c.challenge_id) for c in user.challenges]
-            )
+            challenges=[
+                await self.db.get_challenge_strict(c.challenge_id)
+                for c in user.challenges
+            ]
+        )

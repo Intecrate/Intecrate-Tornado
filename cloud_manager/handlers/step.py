@@ -19,7 +19,7 @@ class StepList(BaseHandler):
     EXPECTED_REQUEST = datamodel.ChallengeRequest
     EXPECTED_RESPONSE = datamodel.StepList
 
-    @api_post
+    @api_post()
     async def post(self, request: datamodel.ChallengeRequest) -> datamodel.StepList:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
@@ -58,9 +58,8 @@ class StepResourceList(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepRequest
     EXPECTED_RESPONSE = datamodel.StepResourceList
 
-    @api_post
+    @api_post()
     async def post(self, request: datamodel.StepRequest) -> datamodel.StepResourceList:
-
         step = await self.db.get_step_strict(request.step_id)
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
@@ -86,9 +85,10 @@ class StepResource(BaseHandler):
     EXPECTED_REQUEST = datamodel.StepResourceRequest
     EXPECTED_RESPONSE = datamodel.StepResource
 
-    @api_post
-    async def post(self, request: datamodel.StepResourceRequest) -> datamodel.StepResource:
-
+    @api_post()
+    async def post(
+        self, request: datamodel.StepResourceRequest
+    ) -> datamodel.StepResource:
         api_key = await self.get_api_key_strict()
         user = await self.db.user_by_key(api_key)
         step = await self.db.get_step_strict(request.step_id)
@@ -99,7 +99,9 @@ class StepResource(BaseHandler):
                 matching_resource = resource
 
         if matching_resource is None:
-            raise RequestError(f"Resource {request.resource_id} does not belong to step {request.step_id}")
+            raise RequestError(
+                f"Resource {request.resource_id} does not belong to step {request.step_id}"
+            )
 
         has_access = False
         for active_challenge in user.challenges:
@@ -108,6 +110,8 @@ class StepResource(BaseHandler):
                 break
 
         if not has_access:
-            raise AuthenticationError(f"User does not have access to step {request.step_id}")
-        
+            raise AuthenticationError(
+                f"User does not have access to step {request.step_id}"
+            )
+
         return matching_resource

@@ -1,4 +1,3 @@
-
 from cloud_manager import datamodel
 from cloud_manager.common.base import BaseHandler, api_get, api_post
 from cloud_manager.common.tools import log
@@ -30,14 +29,13 @@ class benchmark(BaseHandler):
 
     TEST_REQUEST = datamodel.BenchmarkRequest(anAttribute="123")
 
-    @api_post
-    async def post(self, request: datamodel.BenchmarkRequest) -> datamodel.BenchmarkResponse:
-
+    @api_post()
+    async def post(
+        self, request: datamodel.BenchmarkRequest
+    ) -> datamodel.BenchmarkResponse:
         log(f"Got benchmark request. Benchmark attribute: {request.an_attribute}")
 
-        return datamodel.BenchmarkResponse(
-            anotherAttribute="Success"
-        )
+        return datamodel.BenchmarkResponse(anotherAttribute="Success")
 
 
 class recursiveBenchmark(BaseHandler):
@@ -51,15 +49,17 @@ class recursiveBenchmark(BaseHandler):
 
     TEST_REQUEST = datamodel.BenchmarkRequest(anAttribute="123")
 
-    @api_post
-    async def post(self, request: datamodel.BenchmarkRequest) -> datamodel.RecursiveBenchmarkResponse:
-
+    @api_post()
+    async def post(
+        self, request: datamodel.BenchmarkRequest
+    ) -> datamodel.RecursiveBenchmarkResponse:
         log(f"Got benchmark request. Benchmark attribute: {request.an_attribute}")
 
         return datamodel.RecursiveBenchmarkResponse(
             anotherAttribute="Success!",
-            child=datamodel.BenchmarkRequest() # type: ignore
+            child=datamodel.BenchmarkRequest(),  # type: ignore
         )
+
 
 class checkAuth(BaseHandler):
     """

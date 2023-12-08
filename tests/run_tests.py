@@ -7,14 +7,10 @@ from tests.workflows.admin import admin_test
 
 TestHandler.start_server()
 
-TESTS: dict[str, Callable] = {
-    "User Management" : user_test,
-    "Admin Control" : admin_test
-}
+TESTS: dict[str, Callable] = {"User Management": user_test, "Admin Control": admin_test}
 
 
 def run():
-
     for test_name, test in TESTS.items():
         TestHandler.message(f"Starting test {test_name}")
 
@@ -29,3 +25,4 @@ def run():
             TestHandler.testpass(test_name, no_shutdown=True)
 
     TestHandler.message("All tests passed 🎉")
+    TestHandler.stop_server()
