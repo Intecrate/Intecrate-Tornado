@@ -8,7 +8,6 @@ on:
 env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
-  API_ROOT: ${{ secrets.API_ROOT }}
 
 jobs:
   validate:
@@ -31,6 +30,8 @@ jobs:
 
       - name: Setup Config
         run:
+          mkdir ~/.intecrate
+          export API_ROOT="~/.intecrate"
           cp scripts/global_config_template.json ${API_ROOT}/global_config.json
 
       - name: Unit Test
