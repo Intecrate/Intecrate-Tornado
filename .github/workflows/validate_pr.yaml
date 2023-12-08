@@ -8,6 +8,7 @@ on:
 env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
+  API_ROOT: ${{ secrets.API_ROOT }}
 
 jobs:
   validate:
