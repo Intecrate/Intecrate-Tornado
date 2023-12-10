@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir -p $API_ROOT
           cp scripts/global_config_template.json ${API_ROOT}/global_config.json
-          cp scripts/scripts_template.json ${API_ROOT}/secrets.json
+          cp scripts/secrets_template.json ${API_ROOT}/secrets.json
 
       - name: Unit Test
         run: bash scripts/run_tests.sh
