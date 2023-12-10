@@ -29,7 +29,7 @@ jobs:
         run: python -m black --check .
 
       - name: Setup Config
-        run:
+        run: |
           mkdir ~/.intecrate
           export API_ROOT="~/.intecrate"
           cp scripts/global_config_template.json ${API_ROOT}/global_config.json
