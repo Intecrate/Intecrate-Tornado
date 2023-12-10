@@ -104,7 +104,7 @@ class TestHandler:
         print("\nServer log:\n")
         with open(cls.log_path, "r") as f:
             for line in f.readlines():
-                print(line)
+                print(line.strip())
 
         print(f"\n\033[91mTest {test_name} failed: {message}\033[0m\n")
         exit(1)
