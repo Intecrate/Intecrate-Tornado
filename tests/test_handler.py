@@ -101,10 +101,12 @@ class TestHandler:
         # ServerManager.write_log(cls.log_path)
         ServerManager.stop_server()
 
-        print(
-            f"\033[91mTest {test_name} failed: {message}\033[0m\n"
-            f"Log available at {cls.log_path}"
-        )
+        print("\nServer log:\n")
+        with open(cls.log_path, "r") as f:
+            for line in f.readlines():
+                print(line)
+
+        print(f"\n\033[91mTest {test_name} failed: {message}\033[0m\n")
         exit(1)
 
     @staticmethod
