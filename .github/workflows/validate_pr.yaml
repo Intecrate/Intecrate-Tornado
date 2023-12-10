@@ -30,7 +30,7 @@ jobs:
 
       - name: Setup Config
         run: |
-          mkdir ~/.intecrate
+          mkdir -p ~/.intecrate
           export API_ROOT="~/.intecrate"
           cp scripts/global_config_template.json ${API_ROOT}/global_config.json
 
