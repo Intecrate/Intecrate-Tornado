@@ -8,7 +8,7 @@ on:
 env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
-  API_ROOT: ${{ runner.workspace }}/.intecrate
+  API_ROOT: $HOME/.intecrate
 
 jobs:
   validate:
