@@ -31,4 +31,4 @@ ROOT_DB_PASSWORD = "030987a6-f874-4c17-aac6-fbcd3388baf6"
 
 COOKIE_SECRET = secrets["cookie_secret"]
 ADMIN_API_KEYS = secrets["admin_keys"]
-ATLAS_PASSWORD = os.getenv("ATLAS_PASSWORD")
+ATLAS_PASSWORD = os.environ["ATLAS_PASSWORD"]
