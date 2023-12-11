@@ -38,7 +38,9 @@ jobs:
           cp scripts/secrets_template.json ${API_ROOT}/secrets.json
           sed -i "s/SAMPLE_KEY/$INTECRATE_ADMIN_API_KEY/g" ${API_ROOT}/secrets.json
           mkdir -p $API_ROOT/storage
-          ls $API_ROOT
+          cd $API_ROOT
+          pwd
+          ls
 
       - name: Unit Test
         run: bash scripts/run_tests.sh
