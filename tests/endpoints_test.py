@@ -10,7 +10,7 @@ import requests
 import test_handler
 import time
 
-api = test_handler.intecrate_api.api
+api = test_handler.cloud_manager.api
 api_map = api.get_map()
 
 test_handler.start_server()

@@ -1,0 +1,6 @@
+{
+    "secrets_path": "$API_ROOT/secrets.json",
+    "db_path": "$API_ROOT/storage/",
+    "data_root": "$API_ROOT/storage/",
+    "client_path": "/home/intecratecloud/IntecrateClient/webclient/dist/"
+}

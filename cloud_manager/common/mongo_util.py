@@ -9,21 +9,17 @@ from __future__ import annotations
 import datetime
 from pprint import pprint
 import uuid
-from intecrate_api.common.tools import log, hash_str
-import intecrate_api.datamodel as datamodel
-from intecrate_api.common.settings import ATLAS_PASSWORD
-
+from cloud_manager.common.tools import log, hash_str
+import cloud_manager.datamodel as datamodel
+from cloud_manager.common.settings import ATLAS_PASSWORD
+from cloud_manager.error import DatabaseError
 import motor
 import pymongo.errors
 import tornado
 import asyncio
 from bson.objectid import ObjectId
-from typing import List, Optional, Union
+from typing import List, Optional, Type, Union
 from pydantic import ValidationError
-
-
-class DatabaseError(BaseException):
-    ...
 
 
 class Database:
@@ -59,25 +55,61 @@ class Database:
             cls._instance = Database(testmode)
         return cls._instance
 
+    @staticmethod
+    def try_deserialize[T: datamodel.BaseModel](json: dict, model: Type[T]) -> T:
+        """Tries to deserialize a json response into a datamodel
+
+        Args:
+            json: The json to deserialize
+            model: The model class to deserialize into
+
+        Returns:
+            An instance of the model
+        """
+        try:
+            return model(**json)
+        except ValidationError as e:
+            raise DatabaseError(
+                message=f"Could not deserialize into {model.__name__}. {str(e)}: {json}",
+                operation="Deserialize DB json",
+                child_error=e,
+            )
+
     async def ping(self):
+        """Pings atlas to check connection
+
+        Raises:
+            DatabaseError if no connection can be resolved
+        """
         log("pinging atlas...", status="debug")
         try:
             response = await self._client.admin.command("ping")
             log(str(response))
             log("Successfully connected to MongoDB! 🔥🔥")
         except pymongo.errors.ServerSelectionTimeoutError:
-            log(f"Failed to connect to MongoDB 💔💔")
+            raise DatabaseError(
+                message=f"Failed to connect to MongoDB", operation="Ping"
+            )
 
     async def add_user(
         self, name: str, email: str, birthday: str, password_hash: str, api_key: str
-    ) -> datamodel.UserWithPass:
+    ) -> datamodel.User:
         """Adds a user to the database
 
         api_key will be changed if it already exists!
 
         Args:
-            name: User name
-            email:
+            name: User name of the user
+            email: The email of the user
+            birthday: The birthday of the user
+            password_hash: The password_hash of the user
+            api_key: The api key of the user
+
+        Returns:
+            A datamodel object of the user
+
+        Raises:
+            DatabaseError if user cannot be created
         """
 
         while await self._key_exists(api_key):
@@ -87,33 +119,46 @@ class Database:
             )
             api_key = str(uuid.uuid4())
 
-        body = {
-            "name": name,
-            "email": email,
-            "birthday": birthday,
-            "passwordHash": password_hash,
-            "apiKey": api_key,
-            "permissionLevel": 0,
-        }
+        upload_model = datamodel.UserWithPass(
+            id="tmp",
+            name=name,
+            email=email,
+            birthday=birthday,
+            passwordHash=password_hash,
+            apiKey=api_key,
+            permissionLevel=0,
+            challenges=[],
+        )
+        upload_json = upload_model.model_dump(by_alias=True)
+        del upload_json["id"]
 
-        r = await self.users.insert_one(body)
+        r = await self.users.insert_one(upload_json)
 
-        del body["_id"]
-        body["id"] = str(r.inserted_id)
+        try:
+            user = await self.get_user_strict(str(r.inserted_id))
+        except Exception as e:
+            raise DatabaseError(
+                message="Unable to create new user", operation="Add user", child_error=e
+            )
 
-        model = datamodel.UserWithPass(**body)
-        assert isinstance(model, datamodel.UserWithPass), "could not create user model"
-        log(f"added user {model.id} to mongodb", status="debug")
+        log(f"added user {user.id} to mongodb", status="debug")
 
-        return model
+        return user
 
     async def get_user(self, user_id: str) -> Optional[datamodel.User]:
-        """Gets a user by their id"""
+        """Gets a user by their id
 
-        assert isinstance(user_id, str), f"illegal type {type(user_id)}"
+        Args:
+            user_id: The id of the user to fetch
+
+        Returns:
+            A datamodel of the user, or None if no user exists
+        """
+
+        if not isinstance(user_id, str):
+            log(f"User id '{user_id}' is not a string", status="warn")
 
         filter = {"_id": ObjectId(user_id)}
-
         result = await self.users.find_one(filter)
 
         if result is None:
@@ -125,16 +170,41 @@ class Database:
         del result["_id"]
         del result["passwordHash"]
 
-        user = datamodel.User(**result)
+        user = self.try_deserialize(result, datamodel.User)
 
-        assert isinstance(user, datamodel.User), "failed to translate user to datamodel"
-
-        log(f"fetched user {user.name} from id {user_id}", status="debug")
+        log(f"Fetched user {user.name} from id {user_id}", status="debug")
 
         return user
 
+    async def get_user_strict(self, user_id: str) -> datamodel.User:
+        """Gets a user by their id. Raises an error if none exists
+
+        Args:
+            user_id: The id of the user to fetch
+
+        Returns:
+            A datamodel object of the user
+
+        Raises:
+            DatabaseError if no user exists
+        """
+        user = await self.get_user(user_id)
+        if user is not None:
+            return user
+        else:
+            raise DatabaseError(
+                message=f"No user {user_id} exists", operation="Fetch user"
+            )
+
     async def id_by_email(self, email: str) -> Optional[str]:
-        """Get id by email"""
+        """Fetches a user's id by their email
+
+        Args:
+            email: The email to fetch by
+
+        Returns:
+            The id of the matching user, or None if no user/too many users
+        """
 
         stack = []
 
@@ -153,7 +223,14 @@ class Database:
         return id
 
     async def get_password_hash(self, user_id: str) -> Optional[str]:
-        """Gets a password hash from the user id"""
+        """Gets a password hash from the user id
+
+        Args:
+            user_id: The id of the user to target
+
+        Returns:
+            The password hash, or None if no user exists
+        """
 
         log(f"Attempting retrieval of user {user_id} password hash", "info")
 
@@ -169,7 +246,14 @@ class Database:
         return result.get("passwordHash", None)
 
     async def _key_exists(self, api_key: str) -> bool:
-        """Checks if an API Key Exists"""
+        """Checks if an API Key Exists
+
+        Args:
+            api_key: The API key to check
+
+        Returns:
+            True if the key exists, false otherwise
+        """
 
         filter = {"apiKey": api_key}
 
@@ -179,26 +263,40 @@ class Database:
             return False
         return True
 
-    async def user_by_key(self, api_key: str) -> Optional[datamodel.User]:
-        """Gets a user by their API key"""
+    async def user_by_key(self, api_key: str) -> datamodel.User:
+        """Gets a user by their API key
+
+        Args:
+            api_key: The api key of the user
+
+        Returns:
+            A datamodel of the user
+
+        Raises:
+            DatabaseError if no user exists
+        """
 
         if not await self._key_exists(api_key):
             log(f"no api key {api_key} exists", "error")
-            return None
+            raise DatabaseError(
+                message=f"No api key {api_key} exists", operation="Get user by key"
+            )
 
         filter = {"apiKey": api_key}
 
         result = await self.users.find_one(filter)
 
         if result is None:
-            raise DatabaseError("Api key not attached to user??")
+            raise DatabaseError(
+                message=f"No user with api key {api_key} exists",
+                operation="Get user by key",
+            )
 
-        id = result["_id"]
-        result["id"] = str(id)
+        result["id"] = str(result["_id"])
         del result["_id"]
         del result["passwordHash"]
 
-        user = datamodel.User(**result)
+        user = self.try_deserialize(result, datamodel.User)
 
         return user
 
@@ -221,7 +319,7 @@ class Database:
             description=description,
             coverImage=cover_image,
             steps=[],
-            id=None,
+            id="tmp",
         )
 
         # Prepare for db
@@ -233,13 +331,10 @@ class Database:
         del body["_id"]
         body["id"] = str(r.inserted_id)
 
-        model = datamodel.Challenge(**body)
+        challenge = self.try_deserialize(body, datamodel.Challenge)
 
-        if not isinstance(model, datamodel.Challenge):
-            raise DatabaseError("Could not create challenge model")
-
-        log(f"added datamodel {model.id} to mongodb", status="debug")
-        return model
+        log(f"Created new challenge {challenge.id}", status="debug")
+        return challenge
 
     async def rename_challenge(
         self, challenge_id: str, new_name: str
@@ -256,10 +351,7 @@ class Database:
 
         log(f"renaming challenge {challenge_id} to {new_name}", status="debug")
 
-        challenge = await self.get_challenge(challenge_id)
-
-        if challenge is None:
-            raise DatabaseError(f"Challenge {challenge_id} does not exist")
+        challenge = await self.get_challenge_strict(challenge_id)
 
         filter = {"_id": ObjectId(challenge_id)}
         update = {"$set": {"title": new_name}}
@@ -269,7 +361,10 @@ class Database:
         if result.modified_count > 0:
             log(f"Successfully renamed {challenge_id} to '{new_name}'")
         else:
-            raise DatabaseError(f"Failed to rename challenge {challenge_id}")
+            raise DatabaseError(
+                message=f"Failed to rename challenge {challenge_id}",
+                operation="Rename Challenge",
+            )
 
         challenge.title = new_name
         return challenge
@@ -284,17 +379,19 @@ class Database:
             steps: An ordered list of step objects that belong to the challenge
         """
 
-        challenge = await self.get_challenge(challenge_id)
-        if challenge is None:
-            raise DatabaseError(f"Challenge {challenge_id} does not exist")
+        challenge = await self.get_challenge_strict(challenge_id)
 
         for step in steps:
             if step.id not in challenge.steps:
-                raise DatabaseError(f"Step id {step.id} did not exist in challenge")
+                raise DatabaseError(
+                    message=f"Step id {step.id} did not exist in challenge",
+                    operation="Reorder challenge steps",
+                )
 
         if len(steps) != len(challenge.steps):
             raise DatabaseError(
-                f"Mismatched number of steps. Got {len(steps)}, expected {challenge.steps}"
+                message=f"Mismatched number of steps. Got {len(steps)}, expected {challenge.steps}",
+                operation="Reorder challenge steps",
             )
 
         await self.set_challenge_steps(challenge_id, steps)
@@ -316,15 +413,16 @@ class Database:
             elif isinstance(step, str):
                 step_ids.append(step)
             else:
-                raise DatabaseError(f"Cannot set step from type {type(step).__name__}")
+                raise DatabaseError(
+                    message=f"Cannot set step from type {type(step).__name__}",
+                    operation="Set challenge step",
+                )
 
-        if await self.get_challenge(challenge_id) is None:
-            raise DatabaseError(f"Challenge {challenge_id} does not exist")
+        await self.get_challenge_strict(challenge_id)
 
         # Validate all steps
         for step_id in step_ids:
-            if await self.get_step(step_id) is None:
-                raise DatabaseError(f"Step {step_id} does not exist")
+            await self.get_step_strict(step_id)
 
         filter = {"_id": ObjectId(challenge_id)}
         update = {"$set": {"steps": [str(s) for s in step_ids]}}
@@ -334,7 +432,9 @@ class Database:
         if result.modified_count == 1:
             log(f"Successfully set challenge {challenge_id} steps", status="debug")
         else:
-            raise DatabaseError(f"Failed to set challenge {challenge_id} steps")
+            raise DatabaseError(
+                message=f"No challenges were updated", operation="Set challenge steps"
+            )
 
     async def create_step(
         self, challenge_id: str, step_name: str, video_path: str
@@ -354,27 +454,23 @@ class Database:
         assert isinstance(step_name, str), "step name must be str"
         assert isinstance(video_path, str), "video path must be str"
 
-        if await self.get_challenge(challenge_id) is None:
-            raise DatabaseError(f"{challenge_id} is not a valid challenge id")
+        await self.get_challenge_strict(challenge_id)
 
-        step = datamodel.Step(
-            id=None,
+        upload_model = datamodel.Step(
+            id="tmp",
             challengeId=challenge_id,
             videoPath=video_path,
             stepName=step_name,
             helpResources=[],
         )
 
-        result = await self.steps.insert_one(step.model_dump(by_alias=True))
-        step.id = str(result.inserted_id)
+        upload_json = upload_model.model_dump(by_alias=True)
+        del upload_json["id"]
 
-        if step.id is None:
-            raise DatabaseError("Step created without ID")
+        result = await self.steps.insert_one(upload_json)
+        upload_json["id"] = str(result.inserted_id)
 
-        if result.acknowledged:
-            log(f"successfully created step {step.id}", status="debug")
-        else:
-            raise DatabaseError("Failed to create new step")
+        step = self.try_deserialize(upload_json, datamodel.Step)
 
         log(f"attaching step to challenge {challenge_id}", status="debug")
 
@@ -389,7 +485,8 @@ class Database:
             )
         else:
             raise DatabaseError(
-                f"Failed to attach step {step.id} to challenge {challenge_id}"
+                message=f"Failed to attach step {step.id} to challenge {challenge_id}",
+                operation="Create step",
             )
 
         return step
@@ -397,9 +494,7 @@ class Database:
     async def modify_step_path(self, step_id: str, new_path: str) -> datamodel.Step:
         """Modifies the path of the main video connected to the step"""
 
-        step = await self.get_step(step_id)
-        if step is None:
-            raise DatabaseError(f"Step {step_id} does not exist")
+        step = await self.get_step_strict(step_id)
 
         filter = {"_id": ObjectId(step_id)}
         update = {"$set": {"videoPath": new_path}}
@@ -411,7 +506,10 @@ class Database:
                 status="debug",
             )
         else:
-            raise DatabaseError(f"Failed to update video path on step {step_id}")
+            raise DatabaseError(
+                message=f"Failed to update video path on step {step_id}: modified count {result.modified_count}",
+                operation="Modify step path",
+            )
 
         step.video_path = new_path
         return step
@@ -444,10 +542,7 @@ class Database:
         result["id"] = str(id)
         del result["_id"]
 
-        challenge = datamodel.Challenge(**result)
-        assert isinstance(
-            challenge, datamodel.Challenge
-        ), "failed to translate challenge to datamodel"
+        challenge = self.try_deserialize(result, datamodel.Challenge)
 
         log(
             f"fetched challenge {challenge.title} from id {challenge_id}",
@@ -455,8 +550,30 @@ class Database:
         )
         return challenge
 
+    async def get_challenge_strict(self, challenge_id: str) -> datamodel.Challenge:
+        """Gets a challenge by id. Raises exception if none exists.
+
+        Args:
+            challenge_id: The id of the challenge to fetch
+
+        Returns:
+            A model representing the challenge
+
+        Raises:
+            DatabaseError if no matching challenge is found
+        """
+
+        challenge = await self.get_challenge(challenge_id)
+        if challenge is not None:
+            return challenge
+        else:
+            raise DatabaseError(
+                message=f"Challenge {challenge_id} does not exist",
+                operation="Fetch Challenge",
+            )
+
     async def get_step(self, step_id: str) -> Optional[datamodel.Step]:
-        """Gets challenge step by ID
+        """Gets step by an id. Returns non if none exists
 
         Args:
             step_id: The id of the step to fetch
@@ -482,12 +599,31 @@ class Database:
         result["id"] = str(result["_id"])
         del result["_id"]
 
-        step = datamodel.Step(**result)
-
-        assert isinstance(step, datamodel.Step), "failed to translate step to datamodel"
+        step = self.try_deserialize(result, datamodel.Step)
 
         log(f"fetched step {step.id} from db", status="debug")
         return step
+
+    async def get_step_strict(self, step_id: str) -> datamodel.Step:
+        """Gets a step by its id. Raises an error if none exists
+
+        Args:
+            step_id: The id of the step to fetch
+
+        Returns:
+            A datamodel object of the step
+
+        Raises:
+            DatabaseError if no step exists
+        """
+
+        step = await self.get_step(step_id)
+        if step is not None:
+            return step
+        else:
+            raise DatabaseError(
+                message=f"No step {step_id} exists", operation="Fetch step"
+            )
 
     async def list_steps(self, challenge_id: str) -> list[datamodel.Step]:
         """Lists all the steps attached to a given challenge
@@ -499,20 +635,9 @@ class Database:
             A list of step objects that belong to the challenge
         """
 
-        challenge = await self.get_challenge(challenge_id)
+        challenge = await self.get_challenge_strict(challenge_id)
 
-        if challenge is None:
-            raise DatabaseError(
-                f"Cannot list challenge steps for nonexistent challenge {challenge_id}"
-            )
-
-        steps = []
-        for step_id in challenge.steps:
-            s = await self.get_step(step_id)
-            if s is None:
-                raise DatabaseError(f"Challenge {challenge_id} contains null step")
-            else:
-                steps.append(s)
+        steps = [await self.get_step_strict(s) for s in challenge.steps]
 
         return steps
 
@@ -544,8 +669,7 @@ class Database:
         assert isinstance(resource_path, str), "resource path must be str"
         assert isinstance(resource_id, str), "resource id must be str"
 
-        if await self.get_step(step_id) is None:
-            raise DatabaseError(f"{step_id} is not a valid step id")
+        await self.get_step_strict(step_id)
 
         step_resource = datamodel.StepResource(
             prompt=prompt,
@@ -562,7 +686,10 @@ class Database:
         if result.modified_count == 1:
             log(f"successfully added resource to step {step_id}", status="debug")
         else:
-            raise DatabaseError(f"Failed to add resource to step {step_id}")
+            raise DatabaseError(
+                message=f"Failed to add resource to step {step_id}",
+                operation="Add step resource",
+            )
 
         return step_resource
 
@@ -576,9 +703,7 @@ class Database:
             reroute_id: The id of the resource
         """
 
-        if await self.get_step(step_id) is None:
-            log(f"Cannot get resource from nonexistent step {step_id}", status="warn")
-            return None
+        await self.get_step_strict(step_id)
 
         filter = {"_id": ObjectId(step_id), "helpResources.resourceId": resource_id}
 
@@ -599,7 +724,7 @@ class Database:
             )
             return None
 
-        return datamodel.StepResource(**step_json)
+        return self.try_deserialize(step_json, datamodel.StepResource)
 
     async def modify_step_resource_prompt(
         self, step_id: str, resource_id: str, new_prompt: str
@@ -618,7 +743,8 @@ class Database:
         assert isinstance(new_prompt, str), "Step resource prompts must be str"
         if await self.get_step_resource(step_id, resource_id) is None:
             raise DatabaseError(
-                f"Could not find resource {resource_id} on step {step_id}"
+                message=f"Could not find resource {resource_id} on step {step_id}",
+                operation="Modify step resource prompt",
             )
 
         filter = {"_id": ObjectId(step_id), "helpResources.resourceId": resource_id}
@@ -628,13 +754,17 @@ class Database:
         if result.modified_count == 1:
             log(f"Successfully updated resource {resource_id} prompt", status="debug")
         else:
-            raise DatabaseError(f"Failed to resource {resource_id} prompt")
+            raise DatabaseError(
+                message=f"Failed to resource {resource_id} prompt",
+                operation="Modify step resource prompt",
+            )
 
         step = await self.get_step_resource(step_id, resource_id)
 
         if step is None:
             raise DatabaseError(
-                f"Failed to get updated step {step_id} after modification"
+                message=f"Failed to get updated step {step_id} after modification",
+                operation="Modify step resource prompt",
             )
         return step
 
@@ -654,23 +784,31 @@ class Database:
         assert isinstance(new_path, str), "Step resource paths must be str"
         if await self.get_step_resource(step_id, resource_id) is None:
             raise DatabaseError(
-                f"Could not find resource {resource_id} on step {step_id}"
+                message=f"Could not find resource {resource_id} on step {step_id}",
+                operation="Modify step resource path",
             )
 
         filter = {"_id": ObjectId(step_id), "helpResources.resourceId": resource_id}
-        update = {"$set": {"helpResources.$.path": new_path}}
+        update = {"$set": {"helpResources.$.resourcePath": new_path}}
 
         result = await self.steps.update_one(filter, update)
         if result.modified_count == 1:
-            log(f"Successfully updated resource {resource_id} path", status="debug")
+            log(
+                f"Successfully updated resource {resource_id} path to {new_path}",
+                status="debug",
+            )
         else:
-            raise DatabaseError(f"Failed to resource {resource_id} path")
+            raise DatabaseError(
+                message=f"Failed to resolve resource {resource_id} path",
+                operation="Modify step resource path",
+            )
 
         step = await self.get_step_resource(step_id, resource_id)
 
         if step is None:
             raise DatabaseError(
-                f"Failed to get updated step {step_id} after modification"
+                f"Failed to get updated step {step_id} after modification",
+                operation="Modify step resource path",
             )
         return step
 
@@ -683,7 +821,7 @@ class Database:
             c["id"] = str(c["_id"])
             del c["_id"]
 
-            challenges.append(datamodel.Challenge(**c))
+            challenges.append(self.try_deserialize(c, datamodel.Challenge))
 
         return challenges
 
@@ -693,10 +831,7 @@ class Database:
         Args:
             challenge_id: The id of the challenge to delete
         """
-        challenge = await self.get_challenge(challenge_id)
-
-        if challenge is None:
-            raise DatabaseError(f"Cannot delete nonexistent challenge {challenge_id}")
+        challenge = await self.get_challenge_strict(challenge_id)
 
         # Delete child steps
         for step_id in challenge.steps:
@@ -715,7 +850,10 @@ class Database:
         if result.deleted_count > 0:
             log(f"Deleted challenge {challenge_id}!", status="warn")
         else:
-            raise DatabaseError(f"Failed to delete challenge {challenge_id}")
+            raise DatabaseError(
+                f"Failed to delete challenge {challenge_id}",
+                operation="Delete challenge",
+            )
 
     async def delete_step(self, step_id: str) -> None:
         """Deletes a challenge step by id
@@ -723,16 +861,9 @@ class Database:
         Args:
             step_id: The id of the step to delete
         """
-        step = await self.get_step(step_id)
-        if step is None:
-            raise DatabaseError(f"Cannot delete nonexistent challenge step {step_id}")
+        step = await self.get_step_strict(step_id)
 
-        challenge = await self.get_challenge(step.challenge_id)
-
-        if challenge is None or challenge.id is None:
-            raise DatabaseError(
-                f"Step belongs to nonexistent challenge {step.challenge_id}"
-            )
+        challenge = await self.get_challenge_strict(step.challenge_id)
 
         challenge_steps_ids = challenge.steps
 
@@ -740,7 +871,8 @@ class Database:
             challenge_steps_ids.remove(step_id)
         except IndexError:
             raise DatabaseError(
-                f"Step {step_id} does not belong to challenge {step.challenge_id}"
+                message=f"Step {step_id} does not belong to challenge {step.challenge_id}",
+                operation="Delete step",
             )
 
         await self.set_challenge_steps(challenge.id, challenge_steps_ids)
@@ -752,7 +884,10 @@ class Database:
         if result.deleted_count > 0:
             log(f"Deleted challenge step {step_id}!", status="warn")
         else:
-            raise DatabaseError(f"Failed to delete challenge step {step_id}")
+            raise DatabaseError(
+                message=f"Failed to delete challenge step {step_id}",
+                operation="Delete step",
+            )
 
     async def delete_step_resource(self, step_id: str, resource_id: str) -> None:
         """Deletes a resource from a challenge
@@ -774,21 +909,16 @@ class Database:
             )
         else:
             raise DatabaseError(
-                f"Failed to delete resource {resource_id} from step {step_id}"
+                message=f"Failed to delete resource {resource_id} from step {step_id}",
+                operation="Delete step resource",
             )
 
     async def attach_challenge(self, user_id: str, challenge_id: str) -> None:
         """Attaches challenge to user"""
 
-        if await self.get_user(user_id) is None:
-            raise DatabaseError(
-                f"Cannot attach challenge to nonexistent user {user_id}"
-            )
+        await self.get_user_strict(user_id)
 
-        if await self.get_challenge(challenge_id) is None:
-            raise DatabaseError(
-                f"Cannot attach nonexistent challenge {challenge_id} to user"
-            )
+        await self.get_challenge_strict(challenge_id)
 
         active_challenge = datamodel.ActiveChallenge(
             challengeId=challenge_id,
@@ -812,25 +942,24 @@ class Database:
                 status="debug",
             )
         else:
-            raise DatabaseError(f"Failed to attach challenge {challenge_id} to user")
+            raise DatabaseError(
+                message=f"Failed to attach challenge {challenge_id} to user",
+                operation="Attach challenge",
+            )
 
     async def update_step(self, user_id: str, challenge_id: str, step: int) -> None:
         """Updates user's challenge step to a new number"""
 
-        if await self.get_user(user_id) is None:
-            raise DatabaseError(
-                f"Cannot update challenge step on nonexistent user {user_id}"
-            )
-
-        if await self.get_challenge(challenge_id) is None:
-            raise DatabaseError(
-                f"Cannot update challenge step for nonexistent challenge {challenge_id}"
-            )
+        await self.get_user_strict(user_id)
+        await self.get_challenge_strict(challenge_id)
 
         filter = {"_id": ObjectId(user_id), "challenges.challenge": challenge_id}
 
         if await self.users.find_one(filter) is None:
-            raise DatabaseError(f"User {user_id} has no challenge {challenge_id}")
+            raise DatabaseError(
+                message=f"User {user_id} has no challenge {challenge_id}",
+                operation="Update step",
+            )
 
         update = {"$set": {"challenges.$.step": step}}
 
@@ -843,7 +972,8 @@ class Database:
             )
         else:
             raise DatabaseError(
-                f"Failed to update challenge {challenge_id} step @ user {user_id}"
+                message=f"Failed to update challenge {challenge_id} step @ user {user_id}",
+                operation="Update step",
             )
 
 
@@ -897,10 +1027,8 @@ def test():
         # ----- Test password hash Retrieval ----- #
 
         fetched_hash = await db.get_password_hash(user.id)
-        if fetched_hash != user.password_hash:
-            raise Exception(
-                f"Mismatched Hashes: '{user.password_hash}' != '{fetched_hash}'"
-            )
+        if fetched_hash != password_hash:
+            raise Exception(f"Mismatched Hashes: '{password_hash}' != '{fetched_hash}'")
 
         # ----- Challenge Operations ----- #
 
@@ -987,13 +1115,15 @@ def test():
 
         # Look for resource in step
         print("step:")
-        pprint((await db.get_step(step.id)).model_dump(by_alias=True))  # type: ignore
+        pprint((await db.get_step_strict(step.id)).model_dump(by_alias=True))
 
         # Delete step
         await db.delete_step(step2.id)
 
         print("challenge:")
-        pprint((await db.get_challenge(step.challenge_id)).model_dump(by_alias=True))  # type: ignore
+        pprint(
+            (await db.get_challenge_strict(step.challenge_id)).model_dump(by_alias=True)
+        )
 
         # await db.attach_step(challenge.id, step)
         # await db.attach_challenge(user.id, challenge.id)

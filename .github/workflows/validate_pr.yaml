@@ -1,0 +1,47 @@
+name: Validate PR
+
+on:
+  pull_request:
+    branches:
+      - main
+
+env:
+  INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
+  INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
+  ATLAS_PASSWORD: ${{ secrets.ATLAS_PASSWORD }}
+  API_ROOT: "${{ github.workspace }}/.intecrate/"
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -e .
+          python -m pip install -r requirements-dev.txt
+
+      - name: Linting (black)
+        run: python -m black --check .
+
+      - name: Setup Config
+        run: |
+          echo "Making directory $API_ROOT"
+          mkdir -p $API_ROOT
+          cp scripts/global_config_template.json ${API_ROOT}/global_config.json
+          cp scripts/secrets_template.json ${API_ROOT}/secrets.json
+          sed -i "s/SAMPLE_KEY/$INTECRATE_ADMIN_API_KEY/g" ${API_ROOT}/secrets.json
+          mkdir -p $API_ROOT/storage
+          cd $API_ROOT
+          pwd 
+          ls
+
+      - name: Unit Test
+        run: bash scripts/run_tests.sh
+

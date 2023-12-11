@@ -1,0 +1,11 @@
+fabric
+gitignore_parser
+numpy
+requests
+tornado
+python-dateutil
+pymongo
+pydantic==2.5.1
+motor
+keyring
+bcrypt

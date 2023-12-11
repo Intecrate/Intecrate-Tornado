@@ -1,11 +1,7 @@
-# Caches
 __pycache__
+*.DS_Store
 
-# Server Logs
 *.log
-
-# Temporary Files
 *.mp4
 
-# Misc
-*.DS_Store
+settings.json
