@@ -9,7 +9,7 @@ env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
   ATLAS_PASSWORD: ${{ secrets.ATLAS_PASSWORD }}
-  API_ROOT: $HOME/.intecrate
+  API_ROOT: ${{ vars.API_ROOT }}/.intecrate
 
 jobs:
   validate:
@@ -24,9 +24,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python -m pip install -r requirements.txt
-          python -m pip install -r requirements-dev.txt
           python -m pip install -e .
+          python -m pip install -r requirements-dev.txt
 
       - name: Linting (black)
         run: python -m black --check .
@@ -38,9 +37,6 @@ jobs:
           cp scripts/secrets_template.json ${API_ROOT}/secrets.json
           sed -i "s/SAMPLE_KEY/$INTECRATE_ADMIN_API_KEY/g" ${API_ROOT}/secrets.json
           mkdir -p $API_ROOT/storage
-          cd $API_ROOT
-          pwd
-          ls
 
       - name: Unit Test
         run: bash scripts/run_tests.sh
