@@ -9,7 +9,7 @@ env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
   ATLAS_PASSWORD: ${{ secrets.ATLAS_PASSWORD }}
-  API_ROOT: ${{ vars.API_ROOT }}
+  API_ROOT: "$HOME/.intecrate/"
 
 jobs:
   validate:
@@ -32,6 +32,7 @@ jobs:
 
       - name: Setup Config
         run: |
+          echo "Making directory $API_ROOT"
           mkdir -p $API_ROOT
           cp scripts/global_config_template.json ${API_ROOT}/global_config.json
           cp scripts/secrets_template.json ${API_ROOT}/secrets.json
