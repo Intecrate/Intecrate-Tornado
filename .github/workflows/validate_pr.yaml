@@ -9,7 +9,7 @@ env:
   INTECRATE_TEST_USER_KEY: ${{ secrets.INTECRATE_TEST_USER_KEY }}
   INTECRATE_ADMIN_API_KEY: ${{ secrets.INTECRATE_ADMIN_API_KEY }}
   ATLAS_PASSWORD: ${{ secrets.ATLAS_PASSWORD }}
-  API_ROOT: "$HOME/.intecrate/"
+  API_ROOT: "${{ github.workspace }}/.intecrate/"
 
 jobs:
   validate:
