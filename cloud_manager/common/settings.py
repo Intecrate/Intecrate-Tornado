@@ -12,15 +12,16 @@ import json
 
 def expand_path(path: str) -> str:
     """Expands variables and user on path
-    
+
     Args:
         path: The path to expand
-    
+
     Returns:
         The expanded path
     """
 
     return os.path.expanduser(os.path.expandvars(path))
+
 
 ROOT = expand_path(os.environ["API_ROOT"])
 
