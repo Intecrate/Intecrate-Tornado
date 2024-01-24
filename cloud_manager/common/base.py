@@ -155,6 +155,10 @@ class BaseHandler(tornado.web.RequestHandler):
         if EXPECTED_RESPONSE is None:
             log(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute", "error")
             raise Exception(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute")
+        
+        if EXPECTED_RESPONSE is datamodel.Skip:
+            log(f"{type(self).__name__} is skipping response", "warn")
+            return
 
         if isinstance(obj, datamodel.ResponseContainer):
             model = EXPECTED_RESPONSE(**obj.as_dict())

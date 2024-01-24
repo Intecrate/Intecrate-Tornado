@@ -227,6 +227,8 @@ class File(BaseModel):
     filetype: FileType = Field(alias="filetype")
 
 
+class Skip: ...
+
 # --------
 #  Errors
 # --------
