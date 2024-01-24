@@ -69,6 +69,11 @@ def extension_to_resourcetype(extension: str) -> Optional[datamodel.ResourceType
         "md": datamodel.ResourceType.MARKDOWN,
     }.get(extension)
 
+def extension_to_filetype(extension: str) -> Optional[datamodel.FileType]:
+    return {
+        "mp4": datamodel.FileType.MP4,
+    }.get(extension.lower())
+
 
 def maybe_makedirs(path):
     try:

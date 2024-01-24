@@ -173,6 +173,9 @@ class ResourceType(str, Enum):
     VIDEO = "VIDEO"
     MARKDOWN = "MARKDOWN"
 
+class FileType(str, Enum):
+    MP4 = "VideoMP4"
+
 
 class ChallengeProgress(BaseModel):
     started_date: str = Field(alias="startedDate", description="isoformat")
@@ -216,6 +219,12 @@ class UserGetApiKeyResponse(BaseModel):
 class ActiveChallenge(BaseModel):
     challenge_id: str = Field(alias="challengeId")
     progress: ChallengeProgress = Field(alias="challengeProgress")
+
+
+class File(BaseModel):
+    file_id: str = Field(alias="fileId")
+    path: str = Field(alias="filepath")
+    filetype: FileType = Field(alias="filetype")
 
 
 # --------

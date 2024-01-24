@@ -44,6 +44,7 @@ class Database:
         self.users = self.db["users"]
         self.challenges = self.db["challenges"]
         self.steps = self.db["steps"]
+        self.files = self.db["files"]
 
     @classmethod
     def get_instance(cls, testmode: bool = False):
@@ -975,6 +976,28 @@ class Database:
                 message=f"Failed to update challenge {challenge_id} step @ user {user_id}",
                 operation="Update step",
             )
+        
+    async def upload_file_model(self, file: datamodel.File) -> None:
+        """Adds a file model to the files collection
+        
+        Args:
+            file: The file model to upload
+        """
+
+        result = await self.files.insert_one(file.model_dump_json())
+
+        if result.acknowledged:
+            log(
+                f"Successfully uploaded file model {file.file_id}",
+                status="debug",
+            )
+        else:
+            raise DatabaseError(
+                message=f"Failed to upload file model {file.file_id}",
+                operation="Upload file model",
+            )
+
+
 
 
 def test():

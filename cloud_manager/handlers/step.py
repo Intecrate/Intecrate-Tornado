@@ -1,9 +1,10 @@
 from uuid import uuid4
+import uuid
 
-from cloud_manager.common.tools import log
+from cloud_manager.common.tools import extension_to_filetype, log
 import cloud_manager.common.tools as tools
 from cloud_manager import datamodel
-from cloud_manager.common.base import BaseHandler, api_post
+from cloud_manager.common.base import BaseHandler, api_get, api_post
 from cloud_manager.error import AuthenticationError, InternalError, RequestError
 from cloud_manager.file_management import FileManager
 from cloud_manager.datamodel import ResponseContainer
@@ -115,3 +116,37 @@ class StepResource(BaseHandler):
             )
 
         return matching_resource
+
+
+class StepVideo(BaseHandler):
+    """
+    Streams the main video for a step
+    """
+
+    ENDPOINT = r"/step/(.*?)/video"
+    EXPECTED_RESPONSE = None
+
+    @api_get(requires_login=True)
+    async def get(self, step_id: str):
+
+        step = await self.db.get_step_strict(step_id)
+
+        filetype = extension_to_filetype(step.video_path.split('.')[-1])
+
+        if filetype is None:
+            raise InternalError(
+                f"Could not determine step video ({step.video_path}) filetype",
+                operation="Create CDS url"
+            )
+
+        file = datamodel.File(
+            fileId = str(uuid.uuid4()),
+            filepath = step.video_path,
+            filetype = filetype
+        )
+
+        await self.db.upload_file_model(file)
+
+        cds_url = f"cds.intecrate.co/downloadFile?fileId={file.file_id}"
+
+        self.redirect(cds_url)
