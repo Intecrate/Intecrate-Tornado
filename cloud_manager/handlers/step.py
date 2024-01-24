@@ -124,7 +124,7 @@ class StepVideo(BaseHandler):
     """
 
     ENDPOINT = r"/step/(.*?)/video"
-    EXPECTED_RESPONSE = datamodel.Skip
+    EXPECTED_RESPONSE = datamodel.MessageResponse
 
     @api_get(requires_login=False) # TODO: toggle this back to True
     async def get(self, step_id: str):
@@ -149,4 +149,6 @@ class StepVideo(BaseHandler):
 
         cds_url = f"cds.intecrate.co/downloadFile?fileId={file.file_id}"
 
-        self.redirect(cds_url)
+        # self.redirect(cds_url)
+
+        await self.respond(datamodel.MessageResponse(message=cds_url))
