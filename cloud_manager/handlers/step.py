@@ -124,7 +124,7 @@ class StepVideo(BaseHandler):
     """
 
     ENDPOINT = r"/step/(.*?)/video"
-    EXPECTED_RESPONSE = None
+    EXPECTED_RESPONSE = datamodel.Skip
 
     @api_get(requires_login=True)
     async def get(self, step_id: str):
