@@ -984,7 +984,7 @@ class Database:
             file: The file model to upload
         """
 
-        result = await self.files.insert_one(file.model_dump_json())
+        result = await self.files.insert_one(file.model_dump(by_alias=True))
 
         if result.acknowledged:
             log(

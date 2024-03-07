@@ -222,12 +222,11 @@ class ActiveChallenge(BaseModel):
 
 
 class File(BaseModel):
-    file_id: str = Field(alias="fileId")
-    path: str = Field(alias="filepath")
+    file_id: str = Field(alias="file_id")
+    path: str = Field(alias="path")
     filetype: FileType = Field(alias="filetype")
+    name: str = Field(alias="name")
 
-
-class Skip: ...
 
 # --------
 #  Errors
