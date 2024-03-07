@@ -69,7 +69,7 @@ def user_test():
     # ~~~~~~~~~~~~~~~~~~~~
     #   /challenge/add
     # ~~~~~~~~~~~~~~~~~~~~
-    CHALLENGE_ID = "6572ba72df409cc7089f5b96"
+    CHALLENGE_ID = "65b02270f2ff740767bbe9c8"
     auth_headers = {"Authorization": user.api_key}
 
     r = requests.post(
@@ -121,9 +121,9 @@ def user_test():
     )
     TestHandler.raise_for_status(r)
     step_list = TestHandler.try_deserialize_model(r.json(), datamodel.StepList)
-    if len(step_list.steps) != 1:
+    if len(step_list.steps) != 3:
         raise TestFailure(
-            f"Expected sample challenge to have one step, not {len(step_list.steps)}"
+            f"Expected sample challenge to have three steps, not {len(step_list.steps)}"
         )
     step = step_list.steps[0]
     print("info: /step/list passed")
@@ -140,9 +140,9 @@ def user_test():
     resource_list = TestHandler.try_deserialize_model(
         r.json(), datamodel.StepResourceList
     )
-    if len(resource_list.resources) != 1:
+    if len(resource_list.resources) != 3:
         raise TestFailure(
-            f"Expected sample challenge to have one step resource, not {len(step_list.steps)}"
+            f"Expected sample challenge to have three step resources, not {len(step_list.steps)}"
         )
     resource = resource_list.resources[0]
     print("info: /step/resource/list passed")
