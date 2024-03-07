@@ -5,7 +5,6 @@ Kyle Tennison
 November 2023
 """
 
-
 from traceback import print_tb
 from test_handler import TestHandler
 

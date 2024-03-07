@@ -155,7 +155,6 @@ class BaseHandler(tornado.web.RequestHandler):
             else:
                 log(f"Obj {obj} is not a datamodel object")
                 raise Exception(f"Obj {obj} is not a datamodel object")
-        
 
         # Load container into datamodel object
         EXPECTED_RESPONSE = getattr(self, "EXPECTED_RESPONSE", None)
@@ -163,7 +162,7 @@ class BaseHandler(tornado.web.RequestHandler):
         if EXPECTED_RESPONSE is None:
             log(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute", "error")
             raise Exception(f"{type(self).__name__} has no EXPECTED_RESPONSE attribute")
-        
+
         if isinstance(obj, datamodel.ResponseContainer):
             model = EXPECTED_RESPONSE(**obj.as_dict())
         else:
@@ -186,27 +185,41 @@ class BaseHandler(tornado.web.RequestHandler):
         return mongo_util.Database.get_instance(testmode=self.settings["testmode"])
 
 
-def api_post(requires_admin: bool = False, requires_login: bool = False, no_return: bool = False):
+def api_post(
+    requires_admin: bool = False, requires_login: bool = False, no_return: bool = False
+):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
 
     return lambda x: inner_wrapper(
-        x, HttpMethod.POST, requires_admin=requires_admin, requires_login=requires_login, no_return=no_return
+        x,
+        HttpMethod.POST,
+        requires_admin=requires_admin,
+        requires_login=requires_login,
+        no_return=no_return,
     )
 
 
-def api_get(requires_admin: bool = False, requires_login: bool = False, no_return: bool = False):
+def api_get(
+    requires_admin: bool = False, requires_login: bool = False, no_return: bool = False
+):
     """
     A decorator that allows get methods to be handled via datamodel objects.
     """
 
     return lambda x: inner_wrapper(
-        x, HttpMethod.GET, requires_admin=requires_admin, requires_login=requires_login, no_return=no_return
+        x,
+        HttpMethod.GET,
+        requires_admin=requires_admin,
+        requires_login=requires_login,
+        no_return=no_return,
     )
 
 
-def api_delete(requires_admin: bool = False, requires_login: bool = False, no_return: bool = False):
+def api_delete(
+    requires_admin: bool = False, requires_login: bool = False, no_return: bool = False
+):
     """
     A decorator that allows post methods to be handled via datamodel objects.
     """
@@ -216,7 +229,7 @@ def api_delete(requires_admin: bool = False, requires_login: bool = False, no_re
         HttpMethod.DELETE,
         requires_admin=requires_admin,
         requires_login=requires_login,
-        no_return=no_return
+        no_return=no_return,
     )
 
 

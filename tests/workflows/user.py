@@ -167,31 +167,28 @@ def user_test():
     #    /step/{step_id}/video
     # ~~~~~~~~~~~~~~~~~~~~
     r = requests.get(
-        TestHandler.make_url(f"/step/{step.id}/video"),
-        headers=auth_headers
+        TestHandler.make_url(f"/step/{step.id}/video"), headers=auth_headers
     )
     TestHandler.raise_for_status(r, check_json=False)
     if "cds.intecrate.co" not in r.url:
         raise TestFailure(
             f"/step/{step.id}/video did not return cds redirect -- got {r.url}. "
             "verify that CDS is on"
-            )
-    
+        )
+
     print("info: /step/{id}/video passed")
 
     # ~~~~~~~~~~~~~~~~~~~~
     #    /step/{step_id}/resource/{resource_id}/content
     # ~~~~~~~~~~~~~~~~~~~~
     r = requests.get(
-        TestHandler.make_url(f"/step/{step.id}/video"),
-        headers=auth_headers
+        TestHandler.make_url(f"/step/{step.id}/video"), headers=auth_headers
     )
     TestHandler.raise_for_status(r, check_json=False)
     if "cds.intecrate.co" not in r.url:
         raise TestFailure(
             f"/step/{step.id}/video did not return cds redirect -- got {r.url}. "
             "verify that CDS is on"
-            )
-    
-    print("info: /step/{step_id}/resource/{resource_id}/content passed")
+        )
 
+    print("info: /step/{step_id}/resource/{resource_id}/content passed")

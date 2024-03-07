@@ -131,19 +131,19 @@ class StepVideo(BaseHandler):
 
         step = await self.db.get_step_strict(step_id)
 
-        filetype = extension_to_filetype(step.video_path.split('.')[-1])
+        filetype = extension_to_filetype(step.video_path.split(".")[-1])
 
         if filetype is None:
             raise InternalError(
                 f"Could not determine step video ({step.video_path}) filetype",
-                operation="Create CDS url"
+                operation="Create CDS url",
             )
 
         file = datamodel.File(
-            file_id = str(uuid.uuid4()),
-            path = step.video_path,
-            filetype = filetype,
-            name = step.step_name
+            file_id=str(uuid.uuid4()),
+            path=step.video_path,
+            filetype=filetype,
+            name=step.step_name,
         )
 
         await self.db.upload_file_model(file)
@@ -153,6 +153,7 @@ class StepVideo(BaseHandler):
         print(file.model_dump_json(indent=4))
 
         self.redirect(cds_url)
+
 
 class StepResourceContent(BaseHandler):
     """
@@ -171,23 +172,23 @@ class StepResourceContent(BaseHandler):
             raise RequestError(f"Step {step_id} does not exist")
 
         if resource is None:
-            raise RequestError(f"Resource {resource_id} does not belong to step {step_id}")
-            
+            raise RequestError(
+                f"Resource {resource_id} does not belong to step {step_id}"
+            )
 
-
-        filetype = extension_to_filetype(resource.resource_path.split('.')[-1])
+        filetype = extension_to_filetype(resource.resource_path.split(".")[-1])
 
         if filetype is None:
             raise InternalError(
                 f"Could not determine step video ({resource.resource_path}) filetype",
-                operation="Create CDS url"
+                operation="Create CDS url",
             )
 
         file = datamodel.File(
-            file_id = str(uuid.uuid4()),
-            path = resource.resource_path,
-            filetype = filetype,
-            name = f"Step {step_id} resource: {resource.prompt}"
+            file_id=str(uuid.uuid4()),
+            path=resource.resource_path,
+            filetype=filetype,
+            name=f"Step {step_id} resource: {resource.prompt}",
         )
 
         await self.db.upload_file_model(file)

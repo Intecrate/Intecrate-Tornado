@@ -173,6 +173,7 @@ class ResourceType(str, Enum):
     VIDEO = "VIDEO"
     MARKDOWN = "MARKDOWN"
 
+
 class FileType(str, Enum):
     MP4 = "VideoMP4"
 

@@ -2,7 +2,6 @@
 Depricated
 """
 
-
 from __future__ import annotations
 from cloud_manager.webserver import BaseHandler
 from cloud_manager.common.tools import log, get_homedir

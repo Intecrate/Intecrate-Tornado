@@ -24,8 +24,7 @@ sys.path.append(parent_dir)
 import cloud_manager
 
 
-class TestFailure(BaseException):
-    ...
+class TestFailure(BaseException): ...
 
 
 # def __init__(self, message: str, test_name: str):

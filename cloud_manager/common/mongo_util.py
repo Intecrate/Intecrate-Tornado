@@ -976,10 +976,10 @@ class Database:
                 message=f"Failed to update challenge {challenge_id} step @ user {user_id}",
                 operation="Update step",
             )
-        
+
     async def upload_file_model(self, file: datamodel.File) -> None:
         """Adds a file model to the files collection
-        
+
         Args:
             file: The file model to upload
         """
@@ -996,8 +996,6 @@ class Database:
                 message=f"Failed to upload file model {file.file_id}",
                 operation="Upload file model",
             )
-
-
 
 
 def test():
