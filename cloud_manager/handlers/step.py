@@ -126,7 +126,7 @@ class StepVideo(BaseHandler):
     ENDPOINT = r"/step/(.*?)/video"
     EXPECTED_RESPONSE = datamodel.MessageResponse
 
-    @api_get(requires_login=False, no_return=True) # TODO: toggle this back to True for prod
+    @api_get(requires_login=True, no_return=True)
     async def get(self, step_id: str):
 
         step = await self.db.get_step_strict(step_id)
@@ -144,6 +144,50 @@ class StepVideo(BaseHandler):
             path = step.video_path,
             filetype = filetype,
             name = step.step_name
+        )
+
+        await self.db.upload_file_model(file)
+
+        cds_url = f"https://cds.intecrate.co/downloadFile?fileId={file.file_id}"
+
+        print(file.model_dump_json(indent=4))
+
+        self.redirect(cds_url)
+
+class StepResourceContent(BaseHandler):
+    """
+    Streams a resource file for a step
+    """
+
+    ENDPOINT = r"/step/(.*?)/resource/(.*?)/content"
+    EXPECTED_RESPONSE = datamodel.MessageResponse
+
+    @api_get(requires_login=True, no_return=True)
+    async def get(self, step_id: str, resource_id: str):
+
+        try:
+            resource = await self.db.get_step_resource(step_id, resource_id)
+        except DatabaseError:
+            raise RequestError(f"Step {step_id} does not exist")
+
+        if resource is None:
+            raise RequestError(f"Resource {resource_id} does not belong to step {step_id}")
+            
+
+
+        filetype = extension_to_filetype(resource.resource_path.split('.')[-1])
+
+        if filetype is None:
+            raise InternalError(
+                f"Could not determine step video ({resource.resource_path}) filetype",
+                operation="Create CDS url"
+            )
+
+        file = datamodel.File(
+            file_id = str(uuid.uuid4()),
+            path = resource.resource_path,
+            filetype = filetype,
+            name = f"Step {step_id} resource: {resource.prompt}"
         )
 
         await self.db.upload_file_model(file)
